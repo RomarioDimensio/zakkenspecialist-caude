@@ -1,0 +1,26 @@
+/* The temporary animated clone */
+.dim-ghost {
+    position: fixed;
+    left: 0; top: 0;
+    width: auto; height: auto;
+    object-fit: cover;
+    z-index: 9999;
+    pointer-events: none;
+    will-change: transform, width, height, opacity;
+}
+
+/* Destination fade to hide load flicker */
+.product-hero__img {
+    opacity: 0;
+}
+
+.elementor-element-edit-mode .product-hero__img,
+body.dim-arrive .product-hero__img {
+    opacity: 1;
+    transition: opacity 220ms ease;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .dim-ghost, .product-hero__img { transition: none !important; }
+}

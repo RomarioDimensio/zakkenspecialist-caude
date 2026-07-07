@@ -1,0 +1,266 @@
+.dim-ais {
+    padding: 16px 48px;
+}
+.dim-ais__header {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.dim-ais__body {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 1.5rem;
+    position: relative;
+}
+
+.dim-ais__body .pin-spacer {
+    overflow: hidden !important;
+}
+
+.dim-ais__body .filter-pin-skeleton {
+    position: relative;
+    overflow-y: auto;
+    overflow-anchor: none;
+}
+
+.dim-ais__filters {
+    position: relative;
+    contain: layout paint;
+    padding: 1rem 1rem 1rem 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* fixed when scrolling */
+.dim-ais__filters.is-fixed {
+    position: fixed;
+    top: var(--header-height, 0px); /* stick below header */
+    left: var(--sidebar-left, 0px); /* we'll compute this in JS */
+    width: var(--sidebar-width, 100%); /* we'll compute this in JS */
+}
+
+.dim-ais__filters.is-docked {
+    position: absolute;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: var(--sidebar-width, 100%); /* we'll compute this in JS */
+}
+
+.dim-ais__filters .dim-ais-filters-inner-container {
+    position: relative;
+    box-sizing: border-box;
+    transition: height 0.2s ease;
+    max-height: 100vh;
+    overflow-y: auto;
+}
+
+.dim-ais__filters .dim-ais-filters-inner-container .filter-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.dim-ais__filters .dim-ais-filters-inner-container .filter-wrapper .filter-dropdown {
+    max-height: 0;
+    padding: .25rem .5rem;
+    overflow: hidden;
+    visibility: hidden;
+    transition: max-height 0.2s cubic-bezier(0, 1, 0, 1);
+}
+
+.dim-ais__filters .dim-ais-filters-inner-container .filter-wrapper .filter-dropdown.open {
+    max-height: 900px;
+    visibility: visible;
+    transition: max-height 0.4s ease-in-out;
+}
+
+.dim-ais__filters .dim-ais-filters-inner-container .filter-wrapper .filter-dropdown.open .ais-RefinementList .ais-RefinementList-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ais-RefinementList .ais-RefinementList-list .ais-RefinementList-label .ais-RefinementList-labelText {
+    flex-grow: 1;
+}
+
+.dim-ais__filters .dim-ais-filters-inner-container .filter-wrapper .filter-ais-dropdown-btn {
+    position: relative;
+    border: none;
+    border-radius: 0;
+    padding: .5rem;
+
+    font-size: 0.875rem;
+    color: var(--e-a-color-txt);
+    text-align: left;
+}
+
+.dim-ais__filters .dim-ais-filters-inner-container .filter-wrapper .filter-ais-dropdown-btn:focus,
+.dim-ais__filters .dim-ais-filters-inner-container .filter-wrapper .filter-ais-dropdown-btn:hover {
+    background-color: transparent;
+    color: var(--e-a-color-txt);
+}
+
+.dim-ais__filters .dim-ais-filters-inner-container .filter-wrapper .filter-ais-dropdown-btn::after{
+    content: "";
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+
+    border-right: 1px solid currentColor;
+    border-bottom: 1px solid currentColor;
+
+    transform: translateY(-50%) rotate(45deg);
+    transition: transform .2s ease;
+}
+
+.dim-ais__filters .filter-wrapper .filter-ais-dropdown-btn[aria-expanded="true"]::after{
+    transform: translateY(-20%) rotate(-133deg);
+}
+
+.dim-ais__filters .clear-filters-btn > button,
+.dim-ais__filters .clear-filters-btn > button:disabled {
+    /* reset css from widgets */
+    background: none;
+    border: none;
+    box-shadow: none;
+
+    justify-content: left;
+    padding: .5rem
+}
+
+.dim-ais__filters .clear-filters-btn > button:hover {
+    color: var(--e-a-color-txt-accent);
+}
+
+.dim-ais-body-actions {
+    display: flex;
+    padding: 1rem 0;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#dim-product-search-ais-hits .ais-Hits-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+#dim-product-search-ais-hits li {
+    border: none;
+    padding: 0;
+    border-radius: 8px;
+    display: flex;
+    gap: 12px;
+    background: #f5f5f5;
+    box-shadow: 1px 3px 10px 0 rgba(0, 0, 0, 0.03);
+
+    flex: 1 1 270px;
+    max-width: 295px;
+    min-width: 270px;
+
+    transition: all 200ms;
+    transform-origin: center;
+}
+#dim-product-search-ais-hits li:hover {
+    box-shadow: 1px 3px 10px 0px rgba(0, 0, 0, 0.1);
+    transform: translate3d(0px, -4px, 0px) scale(1.01);
+}
+
+.dim-ais-hit {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    gap: 12px;
+}
+
+.dim-ais-hit .product-card {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    justify-content: space-between;
+}
+
+.dim-ais-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.dim-ais-thumb {
+    display: flex;
+    justify-content: center;
+    padding: 24px 0;
+}
+
+.dim-ais-thumb img {
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+}
+
+.dim-ais-info {
+    padding: 1rem 1.2rem;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+    background: white;
+}
+
+.dim-ais-info h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+}
+.dim-ais-meta span {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: #666;
+}
+
+#dim-product-search-ais-hits .dim-ais-button {
+    font-size: 0.875rem;
+    border-radius: 2rem;
+    padding: 0.5em 1em;
+    background-color: #000000cf;
+    color: #fff;
+    border: none;
+    transition: background-color 200ms;
+}
+#dim-product-search-ais-hits .dim-ais-button:hover {
+    background-color: #000000a3;
+}
+
+#dim-product-search-ais-pagination {
+    padding: 1rem 0;
+    align-items: center;
+    justify-content: center;
+}
+#dim-product-search-ais-pagination .dim-pagination-list {
+    gap: 0.25rem;
+}
+#dim-product-search-ais-pagination .link-item {
+    /* reset css from widgets */
+    box-shadow: none;
+    border: none;
+    background: none;
+    border-radius: 0.3125rem;
+
+    min-width: 2rem;
+    height: 2rem;
+    padding: .3125rem;
+    transition: all .3s cubic-bezier(.23,1,.32,1);
+}
+
+#dim-product-search-ais-pagination .link-item:hover,
+#dim-product-search-ais-pagination .ais-Pagination-item--selected .link-item {
+    font-weight: normal;
+    background: #f5f5f5;
+}
+
+@media (max-width: 900px) {
+    .dim-ais__body {
+        grid-template-columns: 1fr;
+    }
+}

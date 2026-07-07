@@ -1,0 +1,486 @@
+body {
+    position: relative;
+}
+
+body:not(.elementor-editor-active):not(.elementor-editor-preview)::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    display: block;
+    background-color: black;
+    top: 0;
+    height: 100%;
+    width: 100%;
+    transition: all 200ms ease;
+}
+
+body:not(.elementor-editor-active):not(.elementor-editor-preview).dim-sequence-fade::after {
+    opacity: 0;
+}
+
+body:not(.elementor-editor-active):not(.elementor-editor-preview).dim-sequence-loaded::after {
+    content: none;
+}
+
+.dim-sequence {
+    position: relative;
+    width: 100%;
+    padding: 1px 0;
+}
+
+.dim-sequence img {
+    border-radius: 10px;
+    object-fit: cover;
+}
+
+.dim-sequence .pin {
+    position: relative;
+    height: 100vh;
+}
+
+.dim-sequence .pin .sequence-content-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .wrapper {
+    position: absolute;
+    visibility: hidden;
+    inset: 0;
+    width: 100%;
+    height: 100vh;
+    left: 0; right: 0; bottom: 0;
+    will-change: transform;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .wrapper .dim-panel-col-left,
+.dim-sequence .pin .sequence-content-wrapper .wrapper .dim-panel-col-right {
+    transition: none;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .green-font {
+    color: #00a651;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .content-wrapper .dim-column-fade-in,
+.dim-sequence .pin .sequence-content-wrapper .content-wrapper .full-slide-up {
+    transition: none;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .content-transition-overlay {
+    position: absolute;
+    background-color: #000000;
+    opacity: 0;
+    pointer-events: none;
+    inset: 0;
+    z-index: 2;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .media-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+
+    display: flex;
+    align-items: center;
+    padding: 3rem;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .media-container .dim-text-content {
+    width: 55%;
+    z-index: 1;
+    overflow: hidden;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .dim-video {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;     /* 🔥 This is the magic */
+    transform: translate(-50%, -50%);
+}
+
+.dim-sequence .pin .sequence-content-wrapper .media-container > [data-elementor-type="section"]:first-of-type {
+    width: 100%;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .dim-image-bg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+
+    width: 100%;
+    height: 100%;
+
+    background-position: top center;
+    background-size: cover;/* 🔥 This is the magic */
+    transform: translate(-50%, -50%);
+}
+.dim-sequence .pin .canvas-container {
+    position: relative;
+    height: 100vh;
+    width: 100%;
+}
+
+.dim-sequence .pin .canvas-container canvas.image-sequence-canvas {
+    width: 100%;
+    height: 100%;
+    max-width: 100vw;
+    max-height: 100vh;
+}
+
+.dim-sequence .sequence-content-container {
+    position: absolute;
+    top: 0;
+    height: 100vh;
+    width: 100%;
+
+    display: flex;
+    justify-content: space-between;
+    color: white;
+    padding: 3rem 3rem 0.5rem 3rem;
+}
+
+
+/* ------------------ START Animation default class styling ------------------ */
+
+
+/* Because of elementor there are multiple containers so we need to have them full width to add our own styling */
+.dim-sequence .sequence-content-container > * {
+    width: 100%;
+}
+.dim-sequence .sequence-content-container .animate-push-up > * {
+    clip-path: inset(-5% 0 11% 0);
+}
+
+.dim-sequence .sequence-content-container .animate-push-up h1,
+.dim-sequence .sequence-content-container .animate-push-up h2,
+.dim-sequence .sequence-content-container .animate-push-up h3,
+.dim-sequence .sequence-content-container .animate-push-up h4,
+.dim-sequence .sequence-content-container .animate-push-up h5,
+.dim-sequence .sequence-content-container .animate-push-up h6,
+.dim-sequence .sequence-content-container .animate-push-up div,
+.dim-sequence .sequence-content-container .animate-push-up span,
+.dim-sequence .sequence-content-container .animate-push-up p {
+    transform: translate(0px, 100%);
+}
+
+.dim-sequence .sequence-content-container .dim-animation-word-stack {
+    position: relative;
+    overflow: hidden;
+}
+
+.dim-sequence .sequence-content-container .dim-animation-word-stack .dim-animation-word {
+    position: absolute;
+    /*left: 50%;*/
+    top: 70%;
+    opacity: 0;
+    will-change: transform, opacity;
+    white-space: nowrap;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel {
+    background: url("/wp-content/uploads/2026/03/ons_verhaal_bg_building.webp") no-repeat center center;
+    background-size: cover;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background-color: #000;
+    opacity: .8;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel .dim-horizontal {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel .dim-horizontal-track {
+    position: relative;
+    display: flex;
+    height: 100%;
+    width: max-content;
+    z-index: 1;
+    will-change: transform;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel .dim-horizontal-slide {
+    position: relative;
+    flex: 0 0 100vw; /* or 80vw if you want cards */
+    height: 100%;
+    background-color: #fff;
+
+    width: 100vw;
+    max-width: 100vw;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel .dim-horizontal-slide.text-content {
+    display: flex;
+    flex: 0;
+    padding: 100px 50px 100px 0;
+    gap: 100px;
+    transform: translateX(-1px);
+}
+
+.final-panel .dim-horizontal-slide.text-content .title-left-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    text-wrap-mode: nowrap;
+
+    transform: translateX(-3vw);
+}
+
+.final-panel .dim-horizontal-slide.text-content .title-left-column h2 {
+    font-weight: bold;
+    margin: 0;
+}
+
+.final-panel .dim-horizontal-slide.text-content .right-column {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
+
+    width: 330px;
+}
+
+.final-panel .dim-horizontal-slide.text-content .right-column .logo-dzs {
+    transform: rotate(90deg);
+}
+
+.final-panel .dim-horizontal-slide.text-content .right-column p {
+    position: absolute;
+    bottom: 0;
+    padding-bottom: 100px;
+    width: 500px;
+    right: 0;
+    transform: translateX(-10%);
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel .dim-horizontal-slide.images-panel {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: max-content;
+    width: 100%;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel .horizontal-image-content-container {
+    position: relative;
+    transform: translateX(-3vw);
+
+    display: flex;
+    gap: 10px;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel .horizontal-image-content-container .img-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper .video-horizontal {
+    height: 460px;
+    width: 730px;
+    border-radius: 1rem;
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper img {
+    height: 460px;
+    width: 730px;
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper img.portrait {
+    width: 300px;
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper img.side-line {
+    position: absolute;
+    aspect-ratio: 1 / 1;
+    width: auto;
+    z-index: 2;
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper img.side-line.top {
+    height: 160px;
+    width: auto;
+
+    top: 0;
+    transform: translate(-100%, -80%);
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper img.side-line.bottom {
+    height: 280px;
+    width: auto;
+
+    bottom: 0;
+    transform: translate(-100%, 80%);
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper .horizontal-text {
+    position: absolute;
+    width: 450px;
+    font-size: 0.75rem;
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper .horizontal-text.left-top {
+    top: 0;
+    transform: translate(0%, -100%);
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper .horizontal-text.right-bottom {
+    right: -20%;
+    bottom: 0;
+    transform: translate(-20%, 105%);
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper .horizontal-text.left-bottom {
+    bottom: 0;
+    left: 20%;
+    transform: translate(0%, 105%);
+}
+
+.dim-sequence .pin .horizontal-image-content-container .img-wrapper img.side-line.portrait {
+    width: 220px;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel-zoom-in {
+    visibility: hidden;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 50px;
+    padding: 50px;
+}
+
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel-zoom-in .content-container {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel-zoom-in .bottom-content {
+    display: flex;
+    justify-content: center;
+    padding: 8px;
+    text-align: center;
+    color: white;
+    width: 100%;
+    z-index: 6;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel-zoom-in .bottom-content .bottom-container {
+    width: 550px;
+    text-align: center;
+    transform: translateY(50%);
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel-zoom-in .bottom-content .pulse-btn {
+    animation: pulse 1.5s infinite;
+    border-radius: 100%;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel-zoom-in .bottom-content .pulse-btn:hover {
+    animation: none;
+    animation-play-state: paused;
+    transform: scale(1.2);
+}
+
+.dim-sequence .flex-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.dim-sequence .flex-row a {
+    display: flex;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel-zoom-in .bottom-content svg {
+    height: 50px;
+    width: 50px;
+    fill: white;
+}
+
+.dim-sequence .pin .sequence-content-wrapper .final-panel-zoom-in .bottom-content h2 {
+    font-weight: bold;
+    color: white;
+}
+
+.dim-sequence .final-panel-zoom-in .last-video {
+    transform: translate3d(0px, 0px, 0px) scale(0.3, 0.3);
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    width: 100%;
+    max-width: 1200px;
+    height: auto;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+
+@media (max-height: 1000px) {
+    .dim-sequence .pin .sequence-content-wrapper .final-panel-zoom-in .bottom-content .bottom-container {
+        transform: translateY(0);
+    }
+}
+
+
+
+@media (max-width: 1240px) {
+
+
+}
+
+@media (max-width: 1024px) {
+    .dim-sequence .sequence-content-container {
+        padding: 0;
+    }
+
+    .dim-sequence .pin .sequence-content-wrapper .media-container {
+        padding: 0;
+    }
+}
+
+@media (max-width: 767px) {
+    .dim-sequence .pin .sequence-content-wrapper .final-panel {
+        display: none;
+    }
+}
+
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5);
+    }
+    70% {
+        transform: scale(1.2);
+        box-shadow: 0 0 0 14px rgba(255, 255, 255, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    }
+}

@@ -1,0 +1,22 @@
+# Wordpress core
+wp-admin/
+wp-includes/
+
+# WordPress config secrets
+wp-config.php
+wp-config-*.php
+!wp-config-sample.php
+
+wp-content/themes/*
+!wp-content/themes/hello-elementor-child/
+
+wp-content/plugins/*
+!wp-content/plugins/dim-*/
+!wp-content/plugins/your-custom-plugin/
+
+wp-content/uploads/
+wp-content/cache/
+wp-content/upgrade/
+wp-content/updraft/
+wp-content/backups-*/
+wp-content/debug.log

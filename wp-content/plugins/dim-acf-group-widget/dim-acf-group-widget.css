@@ -1,0 +1,22 @@
+table.dim-acf-table td {
+    border: none;
+    width: 50%;
+}
+
+table.dim-acf-table tr {
+    border-radius: .5rem;
+}
+
+table.dim-acf-table tr:nth-child(odd) > td {
+    background-color: #f7f9fa;
+}
+
+table.dim-acf-table tbody tr:hover > td,
+table.dim-acf-table tbody tr:hover > th {
+    background-color: unset;
+}
+
+table.dim-acf-table tbody tr:nth-child(odd):hover > td,
+table.dim-acf-table tbody tr:nth-child(odd):hover > th {
+    background-color: #f7f9fa;
+}

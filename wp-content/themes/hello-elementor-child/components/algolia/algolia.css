@@ -1,0 +1,82 @@
+#mega-menu-dim-ais {
+    display: flex;
+    padding: 1rem 1.875rem;
+}
+
+#mega-menu-dim-ais .sub-title {
+    font-size: 0.875rem;
+    color: grey;
+    margin-block-end: 1rem;
+    display: block;
+}
+
+#mega-menu-dim-ais #mega-menu-dim-hits-categories {
+    width: 250px;
+}
+
+#dim-ais-searchbox-container .ais-SearchBox-form {
+    display: flex;
+    width: 100%;
+    gap: 20px;
+}
+
+#dim-ais-searchbox-container .ais-SearchBox-form .ais-SearchBox-input {
+    background-color: #8080801f;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    padding: .5rem 1rem .5rem 2.8rem;
+}
+
+#dim-ais-hits {
+    min-height: 320px;
+    padding: 2.5rem 1rem 3.5rem 3rem;
+    flex: 1;
+}
+
+#dim-ais-hits .ais-Hits-list {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-column-gap: 1rem;
+}
+
+#dim-ais-hits .ais-Hits-list .ais-Hits-item {
+    /* Reset css from the algolia plugin */
+    background: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+#dim-ais-hits .ais-Hits-list .ais-Hits-item::marker {
+    content: "";
+}
+
+#dim-ais-hits .ais-Hits-list a.dim-ais-hit {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+#dim-ais-hits .ais-Hits-list a.dim-ais-hit .dim-ais-thumb {
+    background: #f3f3f3;
+    border-radius: .5rem;
+    padding: .5rem 1rem;
+    aspect-ratio: 3 / 2;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#dim-ais-hits .ais-Hits-list a.dim-ais-hit .dim-ais-thumb img {
+    max-width: 150px;
+}
+
+#dim-ais-hits .ais-Hits-list .dim-ais-hit .hit-meta {
+    padding: .5rem;
+    font-size: 0.875rem;
+}
+
+#dim-ais-hits .ais-Hits-list .dim-ais-hit .hit-meta h6{
+    margin: 0;
+}
