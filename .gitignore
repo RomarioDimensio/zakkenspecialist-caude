@@ -17,6 +17,6 @@ wp-content/plugins/*
 wp-content/uploads/
 wp-content/cache/
 wp-content/upgrade/
-wp-content/updraft/
+wp-content/updraft/*
 wp-content/backups-*/
 wp-content/debug.log

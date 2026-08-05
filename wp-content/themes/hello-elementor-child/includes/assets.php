@@ -23,8 +23,8 @@ add_action('wp_enqueue_scripts', function ($hook) {
 
         if($handle == "comp-algolia-js") {
             wp_localize_script($handle, 'DIM_PRODUCT_SEARCH_MEGA_MENU', [
-                'appId'       => defined('ALGOLIA_APP_ID') ? ALGOLIA_APP_ID : '',
-                'searchKey'   => defined('ALGOLIA_SEARCH_KEY') ? ALGOLIA_SEARCH_KEY : '',
+                'appId'       => function_exists('dim_algolia_app_id') ? dim_algolia_app_id() : (defined('ALGOLIA_APP_ID') ? ALGOLIA_APP_ID : ''),
+                'searchKey'   => function_exists('dim_algolia_search_key') ? dim_algolia_search_key() : (defined('ALGOLIA_SEARCH_KEY') ? ALGOLIA_SEARCH_KEY : ''),
                 'placeHolder'  => get_stylesheet_directory_uri() . '/components/shortcodes/algolia-product-search/placeholder-no-image.png',
             ]);
         }

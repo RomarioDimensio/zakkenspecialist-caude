@@ -52,7 +52,7 @@ function dim_product_detail_panel_shortcode(): string
     ?>
     <div class="dim-product-panel-shell">
         <div id="dim-product-detail-content" class="dim-product-detail-content-wrap">
-            <div class="dim-product-empty">Select a product to view details.</div>
+            <div class="dim-product-loading"><span class="dim-spinner" role="status" aria-label="Laden"></span></div>
         </div>
     </div>
     <?php

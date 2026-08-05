@@ -1,5 +1,9 @@
 .dim-ais {
-    padding: 16px 48px;
+    padding: 16px 10px;
+    /* niet breder dan de site-content, gecentreerd (var in child style.css) */
+    max-width: var(--content-max, 1600px);
+    margin-left: auto;
+    margin-right: auto;
 }
 .dim-ais__header {
     display: flex;
@@ -35,9 +39,14 @@
 /* fixed when scrolling */
 .dim-ais__filters.is-fixed {
     position: fixed;
-    top: var(--header-height, 0px); /* stick below header */
+    top: var(--header-height, 148px); /* stick below header (menu) */
     left: var(--sidebar-left, 0px); /* we'll compute this in JS */
     width: var(--sidebar-width, 100%); /* we'll compute this in JS */
+}
+
+/* in fixed staat: filterlijst mag niet onder de viewport uitsteken */
+.dim-ais__filters.is-fixed .dim-ais-filters-inner-container {
+    max-height: calc(100vh - var(--header-height, 148px) - 16px);
 }
 
 .dim-ais__filters.is-docked {
@@ -143,10 +152,14 @@
     align-items: center;
 }
 
+/* CSS Grid met auto-fill: elke rij exact even brede kaarten, geen uitgerekte laatste rij,
+   en het aantal kolommen past vanzelf — ook als het detailpaneel open is. Kolombreedte
+   sturen? Alleen de 250px in minmax() aanpassen. */
 #dim-product-search-ais-hits .ais-Hits-list {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
+    align-items: stretch;
 }
 
 #dim-product-search-ais-hits li {
@@ -158,9 +171,9 @@
     background: #f5f5f5;
     box-shadow: 1px 3px 10px 0 rgba(0, 0, 0, 0.03);
 
-    flex: 1 1 270px;
-    max-width: 295px;
-    min-width: 270px;
+    /* sizing komt nu uit het grid */
+    min-width: 0;
+    max-width: none;
 
     transition: all 200ms;
     transform-origin: center;
@@ -263,4 +276,160 @@
     .dim-ais__body {
         grid-template-columns: 1fr;
     }
+}
+/* ---- DIM: nieuwe filter-widgets (searchbox / range / toggle) ---- */
+#dim-product-search-ais-searchbox .ais-SearchBox-form { display: flex; }
+#dim-product-search-ais-searchbox .ais-SearchBox-input {
+    width: 100%; padding: 8px 10px; border: 1px solid #d5d5d5; border-radius: 6px;
+    font-size: 14px;
+}
+#dim-product-search-ais-searchbox .ais-SearchBox-reset { display: none; }
+
+.filter-dropdown .ais-RangeInput-form {
+    display: flex; align-items: center; gap: 6px; padding: 6px 0; flex-wrap: wrap;
+}
+.filter-dropdown .ais-RangeInput-input {
+    width: 70px; padding: 6px 8px; border: 1px solid #d5d5d5; border-radius: 6px; font-size: 13px;
+}
+.filter-dropdown .ais-RangeInput-submit {
+    padding: 6px 12px; border: none; border-radius: 6px; background: #1f4e79; color: #fff;
+    cursor: pointer; font-size: 13px;
+}
+.filter-dropdown .ais-RangeInput-submit:hover { opacity: .85; }
+
+.filter-dropdown .ais-ToggleRefinement { padding: 4px 0; }
+.filter-dropdown .ais-ToggleRefinement-label {
+    display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;
+}
+.filter-dropdown .ais-RefinementList-count,
+.filter-dropdown .ais-ToggleRefinement-count {
+    background: #eef3f8; border-radius: 10px; padding: 0 8px; font-size: 12px; margin-left: 6px;
+}
+.filter-dropdown .ais-RefinementList-showMore {
+    background: none; border: none; color: #1f4e79; cursor: pointer; padding: 4px 0; font-size: 13px;
+}
+#dim-product-search-ais-hits .dim-grid-item { cursor: pointer; }
+
+/* subkopjes binnen een filter-dropdown (bv. Dikte: Eenheid / Waarde) */
+.dim-filter-subkop {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+    color: #6b7280; margin: 6px 0 2px;
+}
+
+/* eenheid-dropdown in het Dikte-filter */
+.ais-MenuSelect-select {
+    width: 100%; padding: 7px 8px; margin: 4px 0 8px;
+    border: 1px solid #d5d5d5; border-radius: 6px; font-size: 13px; background: #fff;
+}
+
+/* screenreader-announcement van InstantSearch visueel verbergen (sr-only) */
+.ais-Stats-announcement {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0;
+    clip: rect(0 0 0 0); clip-path: inset(50%);
+    overflow: hidden; white-space: nowrap;
+}
+
+/* Variant-info op de grid-kaart: kleur-swatches + dikte-lijst */
+.dim-card-row {
+    display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 13px;
+}
+.dim-card-label { color: #6b7280; min-width: 42px; }
+.dim-card-swatches { display: inline-flex; flex-wrap: wrap; align-items: center; }
+/* spacing tussen swatches: expliciete margins (gap bleek niet overal door te komen) */
+.dim-card-swatches .dim-swatch { margin-right: 4px; }
+.dim-card-swatches .dim-swatch:last-child { margin-right: 0; }
+.dim-swatch {
+    width: 14px; height: 14px; border-radius: 3px; display: inline-block;
+    border: 1px solid rgba(0, 0, 0, 0.18); box-sizing: border-box;
+}
+.dim-swatch.is-transparant {
+    background:
+        repeating-linear-gradient(45deg, #e5e7eb 0 3px, #ffffff 3px 6px);
+}
+.dim-card-diktes { color: #111827; }
+
+/* Filters: labels niet afbreken met ellipsis — gewoon doorlopen op volgende regel */
+.filter-dropdown .ais-RefinementList-labelText {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.35;
+}
+.filter-dropdown .ais-RefinementList-label {
+    display: flex; align-items: flex-start; gap: 6px;
+}
+.filter-dropdown .ais-RefinementList-checkbox { margin-top: 3px; flex: 0 0 auto; }
+.filter-dropdown .ais-RefinementList-count { flex: 0 0 auto; align-self: flex-start; }
+
+/* Grid-kaarten: overal dezelfde hoogte voor foto én details */
+#dim-product-search-ais-hits .ais-Hits-list { align-items: stretch; }
+#dim-product-search-ais-hits li { align-items: stretch; }
+.dim-ais-hit .product-card { height: 100%; }
+.dim-ais-thumb {
+    height: 170px;              /* vaste beeldhoogte op elke kaart */
+    padding: 16px 0;
+    align-items: center;
+    flex: 0 0 auto;
+    box-sizing: content-box;
+}
+.dim-ais-thumb img {
+    width: 100%; max-width: 180px;
+    height: 100%; object-fit: contain;
+}
+.dim-ais-info {
+    flex: 1;
+    display: flex; flex-direction: column;
+}
+.dim-ais-info h3 { min-height: 2.6em; }   /* ruimte voor 2 titelregels */
+.dim-ais-meta { flex: 1; justify-content: space-between; }
+
+/* ---- Skeleton-kaarten tijdens het laden ------------------------------- */
+/* Server-side gerenderd in de shortcode (PHP), dus de pagina heeft direct
+   ± haar echte hoogte: een #anker-jump (bv. #section-zakkencalculator)
+   komt goed uit en er verspringt niets zodra de producten binnenkomen.
+   JS verwijdert #dim-product-search-ais-skeleton na de eerste render.
+   Eigen klassen/keyframes (geen .dim-sk): products-overview.css laadt
+   niet op taxonomiepagina's waar deze shortcode ook draait. */
+.dim-ais-skeleton {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+.dim-ais-sk-card {
+    border-radius: 8px;
+    background: #f5f5f5;
+    box-shadow: 1px 3px 10px 0 rgba(0, 0, 0, 0.03);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.dim-ais-sk-thumb {
+    height: 170px;              /* zelfde vaste beeldhoogte als .dim-ais-thumb */
+    margin: 16px 16px 0;
+    flex: 0 0 auto;
+}
+.dim-ais-sk-body {
+    background: #fff;
+    padding: 1rem 1.2rem;
+    margin-top: 16px;
+    min-height: 150px;          /* benadert de info-hoogte van een echte kaart */
+    flex: 1;
+}
+.dim-ais-sk {
+    border-radius: 6px;
+    background: linear-gradient(90deg, #eceff3 25%, #f6f8fa 37%, #eceff3 63%);
+    background-size: 400% 100%;
+    animation: dim-ais-shimmer 1.2s ease-in-out infinite;
+}
+.dim-ais-sk-titel { height: 18px; width: 75%; margin-bottom: 14px; }
+.dim-ais-sk-regel { height: 12px; width: 55%; margin-bottom: 10px; }
+.dim-ais-sk-regel.is-kort { width: 35%; }
+@keyframes dim-ais-shimmer {
+    0%   { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .dim-ais-sk { animation: none; }
 }

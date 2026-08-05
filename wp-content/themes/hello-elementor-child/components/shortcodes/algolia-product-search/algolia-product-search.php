@@ -17,7 +17,7 @@ add_action('wp_enqueue_scripts', function () {
         'dim-product-search',
         $theme_uri . '/components/shortcodes/algolia-product-search/algolia-product-search.js',
         ['instantsearch'],
-        file_exists($theme_uri . '/components/shortcodes/algolia-product-search/algolia-product-search.js') ? filemtime($enqueue_url . '/components/shortcodes/algolia-product-search/algolia-product-search.js'): null,
+        file_exists($enqueue_url . '/components/shortcodes/algolia-product-search/algolia-product-search.js') ? filemtime($enqueue_url . '/components/shortcodes/algolia-product-search/algolia-product-search.js'): null,
         true
     );
 });
@@ -36,20 +36,24 @@ add_shortcode('dim_product_search', function ($atts = []) use (&$dim_product_sea
         return '';
     }
 
+    $default_index = function_exists('dim_algolia_index_prefix')
+        ? dim_algolia_index_prefix() . 'searchable_posts'
+        : 'wp_searchable_posts';
+
     $atts = shortcode_atts([
-        'index'         => 'diff',        // Algolia index name
+        'index'         => $default_index,   // Algolia index name
         'hits_per_page' => 24,
         'filters'       => "",
     ], $atts);
 
     if ($isTaxonomyPage) {
-        $atts['filters'] = "taxonomies.category_product:$term->name";
+        // quotes: taxonomienamen kunnen spaties bevatten
+        $atts['filters'] = "taxonomies.{$term->taxonomy}:'{$term->name}'";
     }
 
-    // @todo define keys in php defines
     wp_localize_script('dim-product-search', 'DIM_PRODUCT_SEARCH', [
-        'appId'       => defined('ALGOLIA_APP_ID') ? ALGOLIA_APP_ID : '',
-        'searchKey'   => defined('ALGOLIA_SEARCH_KEY') ? ALGOLIA_SEARCH_KEY : '',
+        'appId'       => function_exists('dim_algolia_app_id') ? dim_algolia_app_id() : (defined('ALGOLIA_APP_ID') ? ALGOLIA_APP_ID : get_option('algolia_application_id', '')),
+        'searchKey'   => function_exists('dim_algolia_search_key') ? dim_algolia_search_key() : (defined('ALGOLIA_SEARCH_KEY') ? ALGOLIA_SEARCH_KEY : get_option('algolia_search_api_key', '')),
         'indexNameAlgoliaSearch'   => $atts['index'],
         'hitsPerPage' => (int) $atts['hits_per_page'],
         'filters'     => $atts['filters'],
@@ -65,36 +69,56 @@ add_shortcode('dim_product_search', function ($atts = []) use (&$dim_product_sea
                     <div id="dim-product-search-ais-clear"></div>
 
                     <div class="dim-ais-filters-inner-container">
-                        <div class="filter-wrapper">
 
-                            <?php if (!$isTaxonomyPage) : ?>
-                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Category </button>
-                            <div id="dim-product-search-filter-category" class="filter-dropdown"></div>
-                            <?php endif; ?>
+                        <div class="filter-wrapper">
+                            <div id="dim-product-search-ais-searchbox"></div>
+                        </div>
+
+                        <div class="filter-wrapper">
+                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Toepassing </button>
+                            <div id="dim-product-search-filter-toepassing" class="filter-dropdown"></div>
                         </div>
                         <div class="filter-wrapper">
-                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Materiaal type </button>
-                            <div id="dim-product-search-filter-material-type" class="filter-dropdown"></div>
+                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Producttype </button>
+                            <div id="dim-product-search-filter-type" class="filter-dropdown"></div>
                         </div>
                         <div class="filter-wrapper">
-                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false">Dikte</button>
-                            <div id="dim-product-search-filter-material-thickness" class="filter-dropdown"></div>
-                        </div>
-                        <div class="filter-wrapper">
-                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false">Kleuren</button>
-                            <div id="dim-product-search-filter-color" class="filter-dropdown"></div>
-                        </div>
-                        <div class="filter-wrapper">
-                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false">Formaat</button>
-                            <div id="dim-product-search-filter-size" class="filter-dropdown"></div>
-                        </div>
-                        <div class="filter-wrapper">
-                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false">Kwaliteit</button>
+                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Materiaal </button>
                             <div id="dim-product-search-filter-quality" class="filter-dropdown"></div>
                         </div>
                         <div class="filter-wrapper">
-                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false">Recycled materiaal</button>
-                            <div id="dim-product-search-filter-recycled-material" class="filter-dropdown"></div>
+                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Kleur </button>
+                            <div id="dim-product-search-filter-color" class="filter-dropdown"></div>
+                        </div>
+                        <div class="filter-wrapper">
+                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Breedte (cm) </button>
+                            <div id="dim-product-search-filter-width" class="filter-dropdown"></div>
+                        </div>
+                        <div class="filter-wrapper">
+                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Lengte (cm) </button>
+                            <div id="dim-product-search-filter-length" class="filter-dropdown"></div>
+                        </div>
+                        <div class="filter-wrapper">
+                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Dikte </button>
+                            <div class="filter-dropdown">
+                                <div id="dim-product-search-filter-dikte-eenheid"></div>
+                                <div id="dim-product-search-filter-dikte-waarde"></div>
+                            </div>
+                        </div>
+                        <div class="filter-wrapper">
+                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Verpakt </button>
+                            <div id="dim-product-search-filter-verpakt" class="filter-dropdown"></div>
+                        </div>
+                        <div class="filter-wrapper">
+                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Merk </button>
+                            <div id="dim-product-search-filter-brand" class="filter-dropdown"></div>
+                        </div>
+                        <div class="filter-wrapper">
+                            <button class="filter-title filter-ais-dropdown-btn" aria-expanded="false"> Opties </button>
+                            <div class="filter-dropdown">
+                                <div id="dim-product-search-filter-trekband"></div>
+                                <div id="dim-product-search-filter-geperforeerd"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -104,6 +128,22 @@ add_shortcode('dim_product_search', function ($atts = []) use (&$dim_product_sea
                 <div class="dim-ais-body-actions">
                     <div id="dim-product-search-ais-stats"></div>
                     <div id="dim-product-search-ais-sortby"></div>
+                </div>
+                <?php // Skeleton-kaarten (server-side): reserveren direct de echte hoogte van
+                      // het grid terwijl Algolia nog laadt. Zo komt een #anker-jump
+                      // (bv. /onze-producten/#section-zakkencalculator) meteen goed uit en
+                      // verspringt de pagina niet. JS haalt dit weg na de eerste render. ?>
+                <div id="dim-product-search-ais-skeleton" class="dim-ais-skeleton" aria-hidden="true">
+                    <?php for ($i = 0; $i < min(24, (int) $atts['hits_per_page']); $i++) : ?>
+                        <div class="dim-ais-sk-card">
+                            <div class="dim-ais-sk dim-ais-sk-thumb"></div>
+                            <div class="dim-ais-sk-body">
+                                <div class="dim-ais-sk dim-ais-sk-titel"></div>
+                                <div class="dim-ais-sk dim-ais-sk-regel"></div>
+                                <div class="dim-ais-sk dim-ais-sk-regel is-kort"></div>
+                            </div>
+                        </div>
+                    <?php endfor; ?>
                 </div>
                 <div id="dim-product-search-ais-hits"></div>
                 <div id="dim-product-search-ais-pagination"></div>

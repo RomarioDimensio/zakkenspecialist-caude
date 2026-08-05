@@ -184,7 +184,7 @@
         },
         {
             "key": "field_68cc1170ccd3a",
-            "label": "Verwijzing naar DOC\/VVO",
+            "label": "Verwijzing naar DOC/VVO",
             "name": "verwijzing_naar_docvvo",
             "aria-label": "",
             "type": "text",
@@ -876,6 +876,237 @@
             "placeholder": "",
             "prepend": "",
             "append": ""
+        },
+        {
+            "key": "field_dz_breedte_cm",
+            "label": "Breedte (cm)",
+            "name": "breedte_cm",
+            "aria-label": "",
+            "type": "number",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "min": "",
+            "max": "",
+            "step": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": "cm"
+        },
+        {
+            "key": "field_dz_lengte_cm",
+            "label": "Lengte (cm)",
+            "name": "lengte_cm",
+            "aria-label": "",
+            "type": "number",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "min": "",
+            "max": "",
+            "step": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": "cm"
+        },
+        {
+            "key": "field_dz_inslag_cm",
+            "label": "Inslag (cm)",
+            "name": "inslag_cm",
+            "aria-label": "",
+            "type": "number",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "min": "",
+            "max": "",
+            "step": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": "cm"
+        },
+        {
+            "key": "field_dz_inhoud_liter",
+            "label": "Inhoud (liter)",
+            "name": "inhoud_liter",
+            "aria-label": "",
+            "type": "number",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "min": "",
+            "max": "",
+            "step": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": "L"
+        },
+        {
+            "key": "field_dz_vorm",
+            "label": "Vorm (rol/los)",
+            "name": "vorm",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_dz_trekband",
+            "label": "Trekband",
+            "name": "trekband",
+            "aria-label": "",
+            "type": "true_false",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "message": "",
+            "default_value": 0,
+            "ui": 0,
+            "ui_on_text": "",
+            "ui_off_text": ""
+        },
+        {
+            "key": "field_dz_geperforeerd",
+            "label": "Geperforeerd",
+            "name": "geperforeerd",
+            "aria-label": "",
+            "type": "true_false",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "message": "",
+            "default_value": 0,
+            "ui": 0,
+            "ui_on_text": "",
+            "ui_off_text": ""
+        },
+        {
+            "key": "field_dz_toepassingen",
+            "label": "Toepassingen",
+            "name": "toepassingen",
+            "aria-label": "",
+            "type": "select",
+            "instructions": "Waar wordt dit product voor gebruikt? Meerdere keuzes mogelijk.",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "choices": {
+                "Pedaalemmerzakken": "Pedaalemmerzakken",
+                "Prullenbak & kantoor": "Prullenbak & kantoor",
+                "Huisvuil & keuken": "Huisvuil & keuken",
+                "Containerzakken & kliko": "Containerzakken & kliko",
+                "PMD & afval scheiden": "PMD & afval scheiden",
+                "GFT & composteerbaar": "GFT & composteerbaar",
+                "Zorg & medisch afval": "Zorg & medisch afval",
+                "Incontinentie & luiers": "Incontinentie & luiers",
+                "Voedsel & horeca": "Voedsel & horeca",
+                "Diepvries & vacuüm": "Diepvries & vacuüm",
+                "Kleinverpakking & onderdelen": "Kleinverpakking & onderdelen",
+                "Verzenden & webshop": "Verzenden & webshop",
+                "Draagtassen & retail": "Draagtassen & retail",
+                "Bouw & afdekken": "Bouw & afdekken",
+                "Pallet & transport": "Pallet & transport",
+                "Bescherming & hoezen": "Bescherming & hoezen",
+                "Industrie & folie op rol": "Industrie & folie op rol"
+            },
+            "default_value": [],
+            "return_format": "value",
+            "multiple": 1,
+            "allow_null": 1,
+            "ui": 1,
+            "ajax": 0,
+            "placeholder": ""
+        },
+        {
+            "key": "field_dz_dikte_eenheid",
+            "label": "Dikte eenheid (T / my / mm)",
+            "name": "dikte_eenheid",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_dz_dikte_waarde",
+            "label": "Dikte waarde",
+            "name": "dikte_waarde",
+            "aria-label": "",
+            "type": "number",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "min": "",
+            "max": "",
+            "step": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
         }
     ],
     "location": [
@@ -899,5 +1130,5 @@
     "display_title": "",
     "allow_ai_access": false,
     "ai_description": "",
-    "modified": 1783426000
+    "modified": 1785137446
 }
