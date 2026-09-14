@@ -1,0 +1,140 @@
+/* =====================================================================
+   Header-zoek
+   Het vergrootglas rechts in de header klapt een zoekbalk open die van
+   rechts naar links over de menu-items heen schuift. Het icoon zelf
+   blijft staan (wordt een kruisje) en is het draaipunt van de animatie.
+
+   Techniek: het paneel ligt absoluut over de menu-container (inset: 0),
+   dus het beinvloedt de layout van de header niet. De "schuif" is een
+   clip-path-wipe vanaf rechts - geen breedte-animatie, want dan zou de
+   tekst in het veld tijdens de animatie meebewegen/verspringen.
+   ===================================================================== */
+
+/* de menu-container van de header is het referentiekader */
+.dzs-hzoek-host { position: relative; }
+
+.dzs-hzoek {
+    position: absolute;
+    inset: 0;                       /* van het logo tot de rechterrand */
+    z-index: 2;                     /* boven het menu, onder het icoon */
+    display: flex;
+    align-items: center;
+
+    /* GEEN eigen achtergrond: het paneel ligt binnen de headerbalk, dus de
+       bestaande #00000080 van de header schijnt er precies doorheen. Een
+       eigen laag van #00000080 zou over die van de header heen komen en
+       samen donkerder uitpakken (~0.75 alpha) - dus juist niet dezelfde
+       kleur. De menu-items worden onzichtbaar gemaakt met een fade. */
+    background: transparent;
+
+    clip-path: inset(0 0 0 100%);   /* dicht: volledig weggeknipt naar rechts */
+    visibility: hidden;
+    transition: clip-path 480ms cubic-bezier(.25, 1, .5, 1),
+                visibility 0s linear 480ms;
+}
+
+.dzs-hzoek-open .dzs-hzoek {
+    clip-path: inset(0 0 0 0);
+    visibility: visible;
+    transition: clip-path 480ms cubic-bezier(.25, 1, .5, 1),
+                visibility 0s linear 0s;
+}
+
+.dzs-hzoek__form {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    /* rechts ruimte vrijhouden voor het kruisje */
+    padding-inline: 28px 84px;
+}
+
+/* Reset met !important: het thema/Elementor zet een eigen kader om elke input.
+   Wij willen de pill-stijl van de site: 1px witte rand, witte tekst. */
+.dzs-hzoek-host .dzs-hzoek__input {
+    width: 100%;
+    background: transparent !important;
+    border: 1px solid #ffffff !important;
+    border-radius: 40px !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 11px 24px !important;
+    color: #ffffff !important;
+    font-family: "Montserrat", sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.3;
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.dzs-hzoek-host .dzs-hzoek__input::placeholder { color: rgba(255, 255, 255, .6); }
+.dzs-hzoek-host .dzs-hzoek__input:focus {
+    border-color: #ffffff !important;
+    box-shadow: 0 0 0 1px #ffffff !important;   /* subtiel dikker bij focus */
+}
+/* het kruisje van de browser bij type=search/text weghalen */
+.dzs-hzoek__input::-webkit-search-cancel-button { display: none; }
+
+/* --- menu-items faden weg terwijl het paneel eroverheen wipet -----------
+   De wipe komt van rechts, dus het item dat het eerst bedekt wordt (rechts)
+   verdwijnt ook als eerste: de vertraging per item wordt in de JS gezet
+   (--dzs-d bij openen, --dzs-drev bij sluiten). */
+.dzs-hzoek-host .elementor-nav-menu > li,
+.dzs-hzoek-host .elementor-menu-toggle {
+    transition: opacity 220ms ease var(--dzs-drev, 0ms);
+}
+.dzs-hzoek-open .elementor-nav-menu > li,
+.dzs-hzoek-open .elementor-menu-toggle {
+    opacity: 0;
+    transition: opacity 220ms ease var(--dzs-d, 0ms);
+}
+.dzs-hzoek-open .elementor-nav-menu,
+.dzs-hzoek-open .elementor-menu-toggle { pointer-events: none; }
+
+/* label alleen voor screenreaders */
+.dzs-hzoek__label {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0;
+    clip: rect(0 0 0 0); clip-path: inset(50%);
+    overflow: hidden; white-space: nowrap;
+}
+
+/* --- het icoon: blijft bovenop en wordt een kruisje ------------------- */
+.dzs-hzoek-knop {
+    position: relative;
+    z-index: 3;
+    cursor: pointer;
+}
+.dzs-hzoek-knop .elementor-icon { position: relative; }
+.dzs-hzoek-knop .elementor-icon svg { transition: opacity 180ms ease; }
+
+.dzs-hzoek-open .dzs-hzoek-knop .elementor-icon svg { opacity: 0; }
+.dzs-hzoek-open .dzs-hzoek-knop .elementor-icon::before,
+.dzs-hzoek-open .dzs-hzoek-knop .elementor-icon::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 22px; height: 2px;
+    background: #fff;
+    border-radius: 2px;
+}
+.dzs-hzoek-open .dzs-hzoek-knop .elementor-icon::before { transform: translate(-50%, -50%) rotate(45deg); }
+.dzs-hzoek-open .dzs-hzoek-knop .elementor-icon::after  { transform: translate(-50%, -50%) rotate(-45deg); }
+
+/* toetsenbordgebruikers zien waar de focus staat */
+.dzs-hzoek-knop:focus-visible {
+    outline: 2px solid var(--dzs-groen, #00a651);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+
+@media (max-width: 767px) {
+    .dzs-hzoek__form { padding-inline: 16px 70px; }
+    .dzs-hzoek-host .dzs-hzoek__input { font-size: 16px; padding: 10px 18px !important; }   /* < 16px = iOS zoomt in bij focus */
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dzs-hzoek,
+    .dzs-hzoek-open .dzs-hzoek,
+    .dzs-hzoek-host .elementor-nav-menu > li,
+    .dzs-hzoek-open .elementor-nav-menu > li { transition: none; }
+}

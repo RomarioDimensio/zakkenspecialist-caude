@@ -86,12 +86,4 @@
         search.start();
     }
 
-    // MOUNT search widget to the #dim-ais
-    const root = document.getElementById('mega-menu-dim-ais');
-    if (root) {
-        // delay so DOM is fully loaded
-        setTimeout(() => {
-            mountInstantSearch(root);
-        }, 10);
-    }
 })();

@@ -1,0 +1,50 @@
+/* Zakkencalculator — uitkomstblok onder het formulier.
+   Format-systeem: body 18/1.2, knop = pill van 50 hoog, huisgroen #00a651. */
+
+.dim-calc-advies {
+    font-size: 18px;
+    line-height: 1.2;
+}
+
+.dim-calc-advies__maat {
+    margin: 0 0 8px;
+}
+
+.dim-calc-advies__maat strong {
+    font-weight: 700;
+}
+
+.dim-calc-advies__toelichting {
+    margin: 0 0 20px;
+    color: #6b7280;
+    font-size: 16px;
+}
+
+.dim-calc-advies__knop {
+    display: inline-flex;
+    align-items: center;
+    height: 50px;
+    padding: 0 28px;
+    border: 0;
+    border-radius: 25px;
+    background: #00a651;
+    color: #fff;
+    font: inherit;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    /* padding-budget: hover verandert alleen de kleur, nooit de maat —
+       anders verspringt het blok onder het formulier. */
+    transition: background-color .2s ease;
+}
+
+.dim-calc-advies__knop:hover,
+.dim-calc-advies__knop:focus-visible {
+    background: #008a43;
+}
+
+/* De verborgen omtrek-range die de calculator aanstuurt; hij hoort niet in de
+   zijbalk thuis, maar moet wel gemount zijn om de deeplink te laten werken. */
+#dim-product-search-filter-omtrek {
+    display: none !important;
+}

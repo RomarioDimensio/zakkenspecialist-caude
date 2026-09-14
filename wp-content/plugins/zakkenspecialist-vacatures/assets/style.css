@@ -1,0 +1,136 @@
+/**
+ * Styling voor de [dimensio_vacatures] shortcode.
+ * Kleuren komen overeen met de bestaande huisstijl-variabelen van De Zakkenspecialist
+ * (--green-accent: #00a651, --green-accent-hover: #007e3d, --grey-background: #f2f2f2,
+ * --gray-bg-900: #6d6e71). Hardcoded als fallback zodat het ook werkt als die variabelen
+ * elders niet gedefinieerd zijn.
+ */
+
+.dzs-vacatures {
+	--dzs-green: #00a651;
+	--dzs-green-hover: #007e3d;
+	--dzs-grey-bg: #f2f2f2;
+	--dzs-grey-text: #6d6e71;
+
+	box-sizing: border-box;
+}
+
+.dzs-vacatures *,
+.dzs-vacatures *::before,
+.dzs-vacatures *::after {
+	box-sizing: inherit;
+}
+
+.dzs-vacatures-melding {
+	background: var( --dzs-grey-bg );
+	border-radius: 8px;
+	padding: 24px;
+	color: var( --dzs-grey-text );
+	text-align: center;
+}
+
+/* Filter tabs */
+
+.dzs-vacatures-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin: 0 0 32px;
+}
+
+.dzs-vacatures-tab {
+	font-family: inherit;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1;
+	padding: 11px 22px;
+	border-radius: 999px;
+	border: 2px solid var( --dzs-green );
+	background: transparent;
+	color: var( --dzs-green );
+	cursor: pointer;
+	transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.dzs-vacatures-tab:hover {
+	border-color: var( --dzs-green-hover );
+	color: var( --dzs-green-hover );
+}
+
+.dzs-vacatures-tab.is-active {
+	background: var( --dzs-green );
+	border-color: var( --dzs-green );
+	color: #ffffff;
+}
+
+/* Kaarten-grid */
+
+.dzs-vacatures-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 28px;
+}
+
+@media (max-width: 992px) {
+	.dzs-vacatures-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 560px) {
+	.dzs-vacatures-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.dzs-vacature-card {
+	display: flex;
+	flex-direction: column;
+	text-decoration: none;
+	color: inherit;
+}
+
+.dzs-vacature-card.dzs-is-hidden {
+	display: none;
+}
+
+.dzs-vacature-image {
+	display: block;
+	width: 100%;
+	aspect-ratio: 4 / 5;
+	border-radius: 12px;
+	background-color: var( --dzs-grey-bg );
+	background-size: cover;
+	background-position: center top;
+	box-shadow: 0 4px 16px rgba( 0, 0, 0, 0.08 );
+	transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.dzs-vacature-card:hover .dzs-vacature-image {
+	box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.14 );
+	transform: translateY(-2px);
+}
+
+.dzs-vacature-body {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-top: 14px;
+}
+
+.dzs-vacature-meta {
+	font-size: 13px;
+	letter-spacing: 0.02em;
+	color: var( --dzs-grey-text );
+}
+
+.dzs-vacature-title {
+	font-size: 18px;
+	font-weight: 700;
+	color: var( --dzs-green );
+	transition: color 0.2s ease;
+}
+
+.dzs-vacature-card:hover .dzs-vacature-title {
+	color: var( --dzs-green-hover );
+}

@@ -223,6 +223,7 @@
 }
 
 .dim-variant-chip {
+    color: #434343;
     padding: 0.35rem 0.75rem;
     border: 1px solid #d1d5db;
     border-radius: 999px;
@@ -234,6 +235,7 @@
 }
 
 .dim-variant-chip:hover {
+    background: #16a34a;
     border-color: #16a34a;
 }
 
@@ -300,12 +302,11 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 4px 0;
 }
 
 .dim-injected-label {
-    font-weight: 600;
-    font-size: 0.9em;
+    font-weight: 700;
+    font-size: 1em;
 }
 
 /* Vaste (niet-klikbare) chip, bv. de breedte — zelfde uiterlijk, geen klik-affordance */

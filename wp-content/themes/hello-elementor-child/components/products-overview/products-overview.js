@@ -383,15 +383,21 @@
             `<input type="hidden" name="dim_post_id" value="${me.post_id || productId}">`;
         panelContent.appendChild(metaEl);
 
-        if (!me.kwaliteit || !me.type || !me.formaat) return;
+        // N.B. geen harde eis meer op kwaliteit/type/formaat: handschoenen hebben
+        // bv. geen 'type' maar wél varianten (maten). variant_group is de bron.
         const group = me.variant_group || '';
         if (!group) return;
 
         // 2) broertjes/zusjes: query op gefacetteerde velden (materiaal + type),
         //    daarna client-side exact op variant_group (bron van waarheid uit de admin-actie).
+        //    Velden die leeg zijn (handschoenen hebben geen 'type') slaan we over;
+        //    is er níets te filteren, dan direct op variant_group (filterOnly-facet).
         let siblings = variantCache.get(group);
         if (!siblings) {
-            const ff = [[`kwaliteit:${me.kwaliteit}`], [`type:${me.type}`]];
+            const ff = [];
+            if (me.kwaliteit) ff.push([`kwaliteit:${me.kwaliteit}`]);
+            if (me.type) ff.push([`type:${me.type}`]);
+            if (!ff.length) ff.push([`variant_group:${group}`]);
             const sib = await algoliaQuery({ query: '', hitsPerPage: 500, distinct: false, facetFilters: ff,
                 attributesToRetrieve: ['post_id', 'variant_group', 'vorm', 'formaat', 'kleuren', 'dikte', 'artikelcode', 'verpakt_per'] });
             siblings = ((sib && sib.hits) || []).filter(s => s.variant_group === group);
@@ -400,9 +406,17 @@
 
         const laatsteGetal = s => { const m = String(s).match(/(\d+(?:[.,]\d+)?)\s*(?:cm|mm)?\s*$/); return m ? parseFloat(m[1].replace(',', '.')) : 0; };
         const eersteGetal = s => { const m = String(s).match(/[\d.,]+/); return m ? parseFloat(m[0].replace(',', '.')) : 0; };
+        // Handschoen-maten (S/M/L/XL) hebben geen getal — sorteer die op maat-volgorde.
+        const MAAT_INDEX = { 'xs': 1, 'extra small': 1, 's': 2, 'small': 2, 'm': 3, 'medium': 3,
+            'l': 4, 'large': 4, 'xl': 5, 'extra large': 5, 'xxl': 6, '2xl': 6, 'xxxl': 7, '3xl': 7 };
+        const maatIdx = s => MAAT_INDEX[String(s).trim().toLowerCase()] ?? null;
         const colors = [...new Set(siblings.map(s => s.kleuren).filter(Boolean))];
         const thicknesses = [...new Set(siblings.map(s => s.dikte).filter(Boolean))].sort((a, b) => eersteGetal(a) - eersteGetal(b));
-        const formaten = [...new Set(siblings.map(s => s.formaat).filter(Boolean))].sort((a, b) => laatsteGetal(a) - laatsteGetal(b));
+        const formaten = [...new Set(siblings.map(s => s.formaat).filter(Boolean))].sort((a, b) => {
+            const ma = maatIdx(a), mb = maatIdx(b);
+            if (ma !== null && mb !== null) return ma - mb;
+            return laatsteGetal(a) - laatsteGetal(b);
+        });
         const vormen = [...new Set(siblings.map(s => norm(s.vorm)).filter(Boolean))].sort();
         const verpakkingen = [...new Set(siblings.map(s => norm(s.verpakt_per)).filter(Boolean))].sort((a, b) => eersteGetal(a) - eersteGetal(b));
 

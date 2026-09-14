@@ -69,7 +69,8 @@ function dim_render_product_fotos_pagina(): void {
         <p style="color:#646970">
             Acties: <a href="<?php echo esc_url(admin_url('index.php?dim_koppel_fotos=1')); ?>">ontbrekende foto&rsquo;s koppelen</a> &middot;
             <a href="<?php echo esc_url(admin_url('index.php?dim_vervang_fotos=1')); ?>">transparante versies doorvoeren</a> &middot;
-            <a href="<?php echo esc_url(admin_url('index.php?dim_reindex_producten=1')); ?>">zoekindex verversen</a>
+            <a href="<?php echo esc_url(admin_url('index.php?dim_reindex_producten=1')); ?>">zoekindex verversen</a> &middot;
+            <a href="<?php echo esc_url(admin_url('index.php?dim_opruim_algolia=1&dry=1')); ?>">zoekindex opschonen (proef)</a>
         </p>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">
             <?php foreach ($items as $it) :
@@ -273,14 +274,17 @@ add_action('admin_init', function () {
 // Serverside re-index: pusht ALLE producten opnieuw naar Algolia in één request
 // (betrouwbaarder dan de browser-batches van de plugin, die stoppen als de tab
 // naar de achtergrond gaat). Gebruik: wp-admin openen met ?dim_reindex_producten=1
+// (product + handschoen), of gericht: =product / =handschoen.
 add_action('admin_init', function () {
     if (!current_user_can('manage_options')) return;
     if (empty($_GET['dim_reindex_producten'])) return;
     @set_time_limit(0);
     @ini_set('memory_limit', '512M');
     ignore_user_abort(true);
+    $keuze = sanitize_text_field((string) $_GET['dim_reindex_producten']);
+    $types = in_array($keuze, ['product', 'handschoen'], true) ? [$keuze] : ['product', 'handschoen'];
     $q = new WP_Query([
-        'post_type' => 'product', 'post_status' => 'publish',
+        'post_type' => $types, 'post_status' => 'publish',
         'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true,
     ]);
     $n = 0;
@@ -288,7 +292,7 @@ add_action('admin_init', function () {
         wp_update_post([ 'ID' => $pid ]);   // triggert de Algolia-push van de plugin
         $n++;
     }
-    wp_die(sprintf('Re-index klaar: %d producten opnieuw naar Algolia gepusht.', $n));
+    wp_die(sprintf('Re-index klaar: %d posts (%s) opnieuw naar Algolia gepusht.', $n, implode(' + ', $types)));
 });
 
 // Serverside import van het klaargezette CSV-bestand (zelfde flow als de upload-pagina).
@@ -315,3 +319,220 @@ add_action('admin_init', function () {
         !empty($summary['errors']) ? '<br>Fouten: ' . esc_html(implode(' | ', array_slice($summary['errors'], 0, 5))) : ''
     ));
 });
+
+/* --------------------------------------------------------------------------
+ * RENDER-FOTO'S KOPPELEN — uniforme 3D-stills (STILL_IMAGES_DZS) als
+ * productfoto voor alle zak- en kratzak-groepen, gekozen op kleur + model.
+ * Bestanden: wp-content/uploads/dim-import/renders/render_*.webp (1200px).
+ * Gebruik: wp-admin openen met ?dim_koppel_renders=1[&dry=1]
+ * - één GEDEELD attachment per render (zelfde nette aanpak als de generieke
+ *   DZS-foto's); oude foto's blijven in de mediabibliotheek staan.
+ * - mapping: transparant -> wit_licht-render (besluit 2026-08-05);
+ *   grijs -> grijs_zwart-still; Bio zakken -> Happy Sacks; model A/B via
+ *   lengte/breedte >= 1.5; roze/transparant alleen model A.
+ * Daarna draaien: ?dim_reindex_producten=product (medium_url in Algolia).
+ * ------------------------------------------------------------------------ */
+
+// Model A (kort) of B (lang) op basis van de verhouding lengte/breedte.
+function dim_render_model(int $pid): string {
+    $b = (float) get_field('breedte_cm', $pid);
+    $l = (float) get_field('lengte_cm', $pid);
+    return ($b > 0 && $l > 0 && ($l / $b) >= 1.5) ? 'B' : 'A';
+}
+
+add_action('admin_init', function () {
+    if (!current_user_can('manage_options')) return;
+    if (empty($_GET['dim_koppel_renders'])) return;
+    @set_time_limit(0);
+    @ini_set('memory_limit', '512M');
+    ignore_user_abort(true);
+    $dry = !empty($_GET['dry']);
+
+    // ?dim_koppel_renders=vernieuw : eerst de afgeleide formaten (300px enz.) van alle
+    // render-attachments opnieuw genereren — nodig nadat een webp in renders/ is
+    // overschreven (bv. roze/transparant vrijstaand gemaakt); daarna gewoon doorkoppelen.
+    $vernieuwd = 0;
+    if ($_GET['dim_koppel_renders'] === 'vernieuw' && !$dry) {
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+        $render_atts = get_posts([
+            'post_type' => 'attachment', 'post_status' => 'inherit',
+            'posts_per_page' => -1, 'fields' => 'ids', 's' => 'DZS render',
+        ]);
+        foreach ($render_atts as $ra) {
+            $pad = get_attached_file($ra);
+            if ($pad && file_exists($pad)) {
+                wp_update_attachment_metadata($ra, wp_generate_attachment_metadata($ra, $pad));
+                $vernieuwd++;
+            }
+        }
+    }
+
+    $zak_groepen = [
+        'HDPE Afvalzakken rol', 'LDPE Afvalzakken rol', 'HDPE Pedaalemmer rol',
+        'LDPE Afvalzakken los', 'HDPE Afvalzakken los', 'MDPE zakken', 'LDPE zak',
+        'HDPE zakken', 'LDPE trekbandzakken', 'HDPE trekbandzakken',
+        'MDPE trekbandzakken', 'Bio zakken', 'LDPE Harmonika los',
+    ];
+    $krat_groepen = [ 'HDPE kratzakken', 'LDPE Kratzakken' ];
+    $zak_ab_kleuren = [ 'blauw', 'bruin', 'geel', 'grijs', 'groen', 'oranje', 'rood', 'wit', 'zwart' ];
+    $krat_kleuren   = [ 'blauw', 'transparant', 'rood', 'groen', 'geel', 'oranje', 'paars', 'wit', 'zwart' ];
+
+    $uploads  = wp_get_upload_dir();
+    $rend_pad = trailingslashit($uploads['basedir']) . 'dim-import/renders/';
+
+    // Eén gedeeld attachment per render-bestand (hervindbaar op titel, dus herdraaibaar).
+    $attach_cache = [];
+    $attachment_voor = function (string $bestand) use (&$attach_cache, $rend_pad, $dry) {
+        if (array_key_exists($bestand, $attach_cache)) return $attach_cache[$bestand];
+        $titel = 'DZS render ' . preg_replace('/\.webp$/', '', $bestand);
+        $bestaand = get_posts([
+            'post_type' => 'attachment', 'post_status' => 'inherit',
+            'title' => $titel, 'posts_per_page' => 1, 'fields' => 'ids',
+        ]);
+        if ($bestaand) return $attach_cache[$bestand] = (int) $bestaand[0];
+        if (!file_exists($rend_pad . $bestand)) return $attach_cache[$bestand] = 0;
+        if ($dry) return $attach_cache[$bestand] = -1;   // zou aangemaakt worden
+        $id = wp_insert_attachment([
+            'post_title'     => $titel,
+            'post_mime_type' => 'image/webp',
+            'post_status'    => 'inherit',
+        ], $rend_pad . $bestand);
+        if (is_wp_error($id) || !$id) return $attach_cache[$bestand] = 0;
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+        wp_update_attachment_metadata($id, wp_generate_attachment_metadata($id, $rend_pad . $bestand));
+        return $attach_cache[$bestand] = (int) $id;
+    };
+
+    // Bepaal het render-bestand voor een product; null = niet in scope / geen match.
+    $via_titel = 0;
+    $kies_bestand = function (int $pid) use ($zak_groepen, $krat_groepen, $zak_ab_kleuren, $krat_kleuren, &$via_titel) {
+        $groep = trim((string) get_field('groep', $pid));
+        $titel = (string) get_the_title($pid);
+        // kratzak herkennen op de NAAM óók als de SAP-groep anders is
+        // (bv. KZ6053: titel "MDPE kratzakken ..." maar groep "MDPE zakken")
+        $is_krat = in_array($groep, $krat_groepen, true) || stripos($titel, 'kratzak') !== false;
+        $is_zak  = !$is_krat && in_array($groep, $zak_groepen, true);
+        if (!$is_zak && !$is_krat) return [null, 'geen zak/kratzak-groep'];
+
+        if ($groep === 'Bio zakken') {   // besluit: Bio zakken = Happy Sacks-render
+            return [ 'render_zak_happysacks_' . dim_render_model($pid) . '.webp', null ];
+        }
+
+        $kleur_raw = mb_strtolower(trim((string) get_field('kleuren', $pid)));
+        $tokens = array_values(array_filter(array_map('trim', preg_split('/[\/,]/', $kleur_raw))));
+        if (!$tokens) {
+            // kleuren-veld leeg: kleur uit de productnaam halen (vaste prioriteit,
+            // blauw vóór transparant; SAP-afkortingen blw/trp komen in namen voor,
+            // bv. 2011416 "60/20 x 80cm T 10 Trp/blw")
+            $lt = mb_strtolower($titel);
+            $kleur_zoek = [
+                'blauw' => ['blauw', 'blw'], 'zwart' => ['zwart'], 'grijs' => ['grijs'],
+                'wit' => ['wit'], 'geel' => ['geel'], 'groen' => ['groen'], 'rood' => ['rood'],
+                'bruin' => ['bruin'], 'oranje' => ['oranje'], 'roze' => ['roze'],
+                'paars' => ['paars'], 'transparant' => ['transparant', 'trp'],
+            ];
+            foreach ($kleur_zoek as $kleur => $naalden) {
+                foreach ($naalden as $n) {
+                    if (strpos($lt, $n) !== false) { $tokens = [$kleur]; break 2; }
+                }
+            }
+            if ($tokens) $via_titel++;
+        }
+        if (!$tokens) return [null, 'geen kleur'];
+
+        foreach ($tokens as $t) {
+            if ($is_krat) {
+                if (in_array($t, $krat_kleuren, true)) return [ "render_kratzak_{$t}.webp", null ];
+                continue;
+            }
+            // transparant/roze hebben nu óók een model B (picker-compositing "Zak Slank"),
+            // dus gewoon de A/B-formule volgen — variant-groepen blijven zo consistent.
+            if ($t === 'transparant') return [ 'render_zak_transparant_' . dim_render_model($pid) . '.webp', null ];
+            if ($t === 'roze')        return [ 'render_zak_roze_' . dim_render_model($pid) . '.webp', null ];
+            if (in_array($t, $zak_ab_kleuren, true)) {
+                return [ 'render_zak_' . $t . '_' . dim_render_model($pid) . '.webp', null ];
+            }
+        }
+        return [null, 'geen render voor kleur "' . $kleur_raw . '"'];
+    };
+
+    $q = new WP_Query([
+        'post_type' => 'product', 'post_status' => 'publish',
+        'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true,
+    ]);
+
+    $gezet = 0; $al_goed = 0; $buiten_scope = 0; $geen_match = 0; $fout = 0;
+    $per_bestand = []; $voorbeelden_mis = [];
+    foreach ($q->posts as $pid) {
+        [$bestand, $reden] = $kies_bestand($pid);
+        if ($bestand === null) {
+            if ($reden === 'geen zak/kratzak-groep') { $buiten_scope++; }
+            else {
+                $geen_match++;
+                if (count($voorbeelden_mis) < 8) {
+                    $voorbeelden_mis[] = get_field('artikelcode', $pid) . ' (' . $reden . ')';
+                }
+            }
+            continue;
+        }
+        $aid = $attachment_voor($bestand);
+        if ($aid === 0) { $fout++; if (count($voorbeelden_mis) < 8) $voorbeelden_mis[] = $bestand . ' ontbreekt in renders/'; continue; }
+        $per_bestand[$bestand] = ($per_bestand[$bestand] ?? 0) + 1;
+        if (!$dry) {
+            // grid gebruikt de featured image; de DETAILVIEW (Elementor-template)
+            // toont het ACF-veld product_image — beide moeten dus mee.
+            $thumb_ok = ((int) get_post_thumbnail_id($pid) === $aid);
+            $acf_ok   = ((int) get_post_meta($pid, 'product_image', true) === $aid);
+            if ($thumb_ok && $acf_ok) { $al_goed++; continue; }
+            if (!$thumb_ok) set_post_thumbnail($pid, $aid);
+            if (!$acf_ok)   update_field('product_image', $aid, $pid);
+        }
+        $gezet++;
+    }
+
+    ksort($per_bestand);
+    $verdeling = implode('<br>', array_map(
+        fn($b, $n) => esc_html("$b: $n"), array_keys($per_bestand), $per_bestand
+    ));
+    wp_die(sprintf(
+        '%sRender-koppeling klaar. Foto gezet: %d | al goed (overgeslagen): %d | buiten scope (folie/grip/hoes/...): %d | geen kleur-match: %d | kleur via productnaam: %d | fout: %d.%s<br><br><strong>Verdeling per render:</strong><br>%s%s<br><br>Volgende stap: <a href="%s">?dim_reindex_producten=product</a> zodat de zoekindex de nieuwe foto\'s krijgt.',
+        $dry ? '<strong>DRY RUN</strong> — er is niets gewijzigd.<br>' : '',
+        $gezet, $al_goed, $buiten_scope, $geen_match, $via_titel, $fout,
+        $vernieuwd ? sprintf('<br>Afgeleide formaten vernieuwd voor %d render-attachments.', $vernieuwd) : '',
+        $verdeling,
+        $voorbeelden_mis ? '<br><br>Niet gekoppeld (voorbeelden):<br>' . esc_html(implode(' | ', $voorbeelden_mis)) : '',
+        esc_url(admin_url('index.php?dim_reindex_producten=product'))
+    ));
+});
+
+/* --------------------------------------------------------------------------
+ * BEDRUKKING — intern een SAP-waarde, publiek een dienst
+ *
+ * Het ACF-veld `bedrukking` bevat wat er FEITELIJK op een product gedrukt is:
+ * meestal de opdruk van één klant ("Knowaste Type B", "Dumoulin", "Le relais").
+ * Dat hoort niet op een publieke productpagina — het is klantinformatie, en
+ * niemand anders kan die opdruk bestellen. Wat de bezoeker wél wil weten is:
+ * kan hier mijn eigen opdruk op?
+ *
+ * Daarom vertalen we de waarde bij het uitlezen naar "Mogelijk op aanvraag".
+ * De ruwe SAP-waarde blijft ongemoeid in de database en in het ACF-scherm in
+ * wp-admin staan (die gebruikt de onbewerkte waarde, niet format_value), dus
+ * de import en de SAP-koppeling merken hier niets van.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Is er een échte opdruk bekend? Een gevulde bedrukking is het bewijs dat dit
+ * product bedrukt KAN worden — we hebben het immers al eens gedaan.
+ * Waardes als "onbedrukt" of "no print" zeggen juist het tegendeel.
+ */
+function dim_bedrukking_is_gevuld( $post_id ): bool {
+    if ( ! is_numeric( $post_id ) ) return false;
+    $raw = trim( (string) get_post_meta( (int) $post_id, 'bedrukking', true ) );
+    if ( $raw === '' ) return false;
+    $niets = [ '.', '-', '0', 'geen', 'geen print', 'blanco', 'no print', 'noprint', 'onbedrukt' ];
+    return ! in_array( mb_strtolower( $raw ), $niets, true );
+}
+
+add_filter( 'acf/format_value/name=bedrukking', function ( $value, $post_id, $field ) {
+    return dim_bedrukking_is_gevuld( $post_id ) ? 'Mogelijk op aanvraag' : '';
+}, 20, 3 );

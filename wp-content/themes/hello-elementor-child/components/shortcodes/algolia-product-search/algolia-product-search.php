@@ -42,13 +42,25 @@ add_shortcode('dim_product_search', function ($atts = []) use (&$dim_product_sea
 
     $atts = shortcode_atts([
         'index'         => $default_index,   // Algolia index name
-        'hits_per_page' => 24,
-        'filters'       => "",
+        'hits_per_page' => 12,               // design 2026: max 12 per pagina, groene pagineringsbalk
+        'filters'       => "",               // Algolia filter-string, bv. post_type:handschoen
+        'toon_filters'  => "ja",             // "nee" = geen filter-zijbalk (bv. just-gloves)
+        'toon_balk'     => "ja",             // "nee" = geen stats/sorteer-balk boven het grid
+        'skeleton'      => "",               // aantal skeleton-kaarten (leeg = hits_per_page, max 24)
     ], $atts);
+
+    $toonFilters = strtolower(trim($atts['toon_filters'])) !== 'nee';
+    $toonBalk    = strtolower(trim($atts['toon_balk'])) !== 'nee';
+    $skeletonN   = $atts['skeleton'] !== '' ? max(1, (int) $atts['skeleton']) : min(24, (int) $atts['hits_per_page']);
 
     if ($isTaxonomyPage) {
         // quotes: taxonomienamen kunnen spaties bevatten
         $atts['filters'] = "taxonomies.{$term->taxonomy}:'{$term->name}'";
+    } elseif ($atts['filters'] === '') {
+        // Standaard alleen zakken-producten: nu handschoenen óók in de index zitten
+        // mag /onze-producten/ ze niet ineens tonen. Een pagina die iets anders wil
+        // (bv. just-gloves) geeft zelf filters="post_type:handschoen" mee.
+        $atts['filters'] = 'post_type:product';
     }
 
     wp_localize_script('dim-product-search', 'DIM_PRODUCT_SEARCH', [
@@ -62,8 +74,9 @@ add_shortcode('dim_product_search', function ($atts = []) use (&$dim_product_sea
     ]);
 
     ob_start(); ?>
-    <div id="dim-products-fsearch" class="dim-ais">
+    <div id="dim-products-fsearch" class="dim-ais<?php echo $toonFilters ? '' : ' dim-ais--zonder-filters'; ?>">
         <div class="dim-ais__body">
+            <?php if ($toonFilters) : ?>
             <div class="filter-pin-skeleton">
                 <aside class="dim-ais__filters" id="dim-ais-filter-container">
                     <div id="dim-product-search-ais-clear"></div>
@@ -118,37 +131,49 @@ add_shortcode('dim_product_search', function ($atts = []) use (&$dim_product_sea
                             <div class="filter-dropdown">
                                 <div id="dim-product-search-filter-trekband"></div>
                                 <div id="dim-product-search-filter-geperforeerd"></div>
+                                <div id="dim-product-search-filter-bedrukking"></div>
                             </div>
                         </div>
                     </div>
 
                 </aside>
             </div>
+            <?php endif; ?>
             <main class="dim-ais__results">
+                <?php if ($toonBalk) : ?>
                 <div class="dim-ais-body-actions">
                     <div id="dim-product-search-ais-stats"></div>
                     <div id="dim-product-search-ais-sortby"></div>
                 </div>
+                <?php endif; ?>
                 <?php // Skeleton-kaarten (server-side): reserveren direct de echte hoogte van
                       // het grid terwijl Algolia nog laadt. Zo komt een #anker-jump
                       // (bv. /onze-producten/#section-zakkencalculator) meteen goed uit en
                       // verspringt de pagina niet. JS haalt dit weg na de eerste render. ?>
                 <div id="dim-product-search-ais-skeleton" class="dim-ais-skeleton" aria-hidden="true">
-                    <?php for ($i = 0; $i < min(24, (int) $atts['hits_per_page']); $i++) : ?>
+                    <?php for ($i = 0; $i < $skeletonN; $i++) : ?>
                         <div class="dim-ais-sk-card">
                             <div class="dim-ais-sk dim-ais-sk-thumb"></div>
                             <div class="dim-ais-sk-body">
-                                <div class="dim-ais-sk dim-ais-sk-titel"></div>
-                                <div class="dim-ais-sk dim-ais-sk-regel"></div>
-                                <div class="dim-ais-sk dim-ais-sk-regel is-kort"></div>
+                                <div class="dim-ais-sk-links">
+                                    <div class="dim-ais-sk dim-ais-sk-titel"></div>
+                                    <div class="dim-ais-sk dim-ais-sk-regel"></div>
+                                </div>
+                                <div class="dim-ais-sk-rechts">
+                                    <div class="dim-ais-sk dim-ais-sk-regel is-kort"></div>
+                                    <div class="dim-ais-sk dim-ais-sk-regel is-kort"></div>
+                                    <div class="dim-ais-sk dim-ais-sk-regel is-kort"></div>
+                                </div>
                             </div>
                         </div>
                     <?php endfor; ?>
                 </div>
                 <div id="dim-product-search-ais-hits"></div>
-                <div id="dim-product-search-ais-pagination"></div>
             </main>
         </div>
+        <?php // Paginering BUITEN de twee kolommen: de groene balk loopt over de
+              // volle breedte van filterbalk + grid samen (design 2026). ?>
+        <div id="dim-product-search-ais-pagination"></div>
     </div>
     <?php
     return ob_get_clean();

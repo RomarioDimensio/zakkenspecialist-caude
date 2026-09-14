@@ -2,12 +2,18 @@
 // settings SEARCH ENGINE Algolia — velden volgens de PLATTE ACF Product-groep (SAP-normalisatie)
 if (!defined('ABSPATH')) exit;
 
+// product = zakken-assortiment (/onze-producten/), handschoen = Just Gloves (/just-gloves/).
+// De pagina's scheiden de twee via een post_type-filter in de shortcode.
+// LET OP: $should is de statuscheck van de plugin ('publish' + geen wachtwoord). Die MOET
+// blijven staan: overschrijven we hem, dan wordt een product in concept of prullenbak bij
+// het opslaan gewoon opnieuw naar Algolia gepusht en blijft het in het overzicht staan
+// terwijl het detail leeg is (bug gevonden 2026-08-21 op artikel 1002466).
 add_filter('algolia_should_index_post', function ($should, WP_Post $post) {
-    return $post->post_type === 'product';
+    return $should && in_array($post->post_type, ['product', 'handschoen'], true);
 }, 10, 2);
 
 add_filter('algolia_should_index_searchable_post', function ($should, WP_Post $post) {
-    return $post->post_type === 'product';
+    return $should && in_array($post->post_type, ['product', 'handschoen'], true);
 }, 10, 2);
 
 // Algolia credentials: Docker env -> anders plugin-instellingen (DB)
@@ -72,6 +78,21 @@ $attributesToSearch = [
 // facets — nodig om te kunnen filteren. LET OP: ook numerieke velden die je met een
 // range-filter (rangeInput/rangeSlider) gebruikt MOETEN hier staan, anders krijgt de
 // widget geen min/max terug en werkt het filter niet.
+/**
+ * Omtrek van de opengevouwen zak in cm.
+ *
+ * Zonder zijvouw is de platte breedte precies de halve omtrek, dus omtrek = 2b.
+ * Met zijvouw zit er aan elke kant een ingevouwen flap van `inslag` diep; die
+ * flap kost 2 x inslag aan materiaal, aan beide kanten. Vandaar 2 x (b + 2i).
+ *
+ * @return float|null null als er geen bruikbare breedte bekend is.
+ */
+function dim_bereken_omtrek_cm( $breedte, $inslag ): ?float {
+    if ( ! is_numeric( $breedte ) || (float) $breedte <= 0 ) return null;
+    $i = is_numeric( $inslag ) ? (float) $inslag : 0.0;
+    return round( 2 * ( (float) $breedte + 2 * $i ), 1 );
+}
+
 function dim_algolia_faceting_attrs(): array {
     return [
         'searchable(taxonomies.product-group)',
@@ -86,11 +107,17 @@ function dim_algolia_faceting_attrs(): array {
         'searchable(certificering)',
         'trekband',
         'geperforeerd',
+        'bedrukking_mogelijk',
         'post_type',
         // numerieke range-filters (linkerkant): breedte / lengte / inhoud
         'breedte_cm',
         'lengte_cm',
         'inslag_cm',
+        // omtrek = de maat waar de zakkencalculator op matcht. Een zak met
+        // zijvouw (65/25) is opengevouwen veel wijder dan zijn platte breedte,
+        // dus filteren op breedte_cm alleen zou die zakken onterecht laten
+        // afvallen. Zie dim_bereken_omtrek_cm() hieronder.
+        'omtrek_cm',
         'inhoud_liter',
         'colli_per_laag',
         'colli_per_pallet',
@@ -125,9 +152,10 @@ add_filter('algolia_posts_index_settings', function ($settings) use ($attributes
 
 function wds_algolia_custom_fields( array $attributes, WP_Post $post ) {
 
-    if ($post->post_type !== 'product') {
+    if ( ! in_array( $post->post_type, [ 'product', 'handschoen' ], true ) ) {
         return $attributes;
     }
+    $is_handschoen = $post->post_type === 'handschoen';
 
     // Platte ACF-velden — tekst
     $text_fields = [
@@ -146,12 +174,13 @@ function wds_algolia_custom_fields( array $attributes, WP_Post $post ) {
         $attributes['merk_naam'] = dim_merk_titlecase( $attributes['merk_naam'] );
     }
 
-    // variant-groepering: basis (materiaal+type+vorm+formaat+merk) zonder kleur/dikte
+    // variant-groepering: zakken = basis (materiaal+type+vorm+formaat+merk) zonder kleur/dikte;
+    // handschoenen = basistitel + kleur, met maat (S/M/L/XL) als variant-dimensie
     foreach ( [ 'variant_group', 'variant_base_title' ] as $field ) {
         $v = get_post_meta( $post->ID, $field, true );
         if ( $v === '' || $v === false || $v === null ) {
             // fallback: bereken on-the-fly als de admin-actie nog niet is gedraaid
-            $calc = dim_calc_variant( $post->ID );
+            $calc = $is_handschoen ? dim_calc_variant_handschoen( $post->ID ) : dim_calc_variant( $post->ID );
             $v = $calc[ $field ];
         }
         if ( $v !== '' ) {
@@ -208,10 +237,33 @@ function wds_algolia_custom_fields( array $attributes, WP_Post $post ) {
         }
     }
 
+    // Omtrek van de opengevouwen zak — het veld waar de zakkencalculator op
+    // filtert. Een platte zak zonder zijvouw heeft omtrek 2 x breedte; bij een
+    // zak met zijvouw komt er per kant 2 x de inslag bij, dus 2 x (b + 2 x i).
+    // Controle op het assortiment: kratzak 68/17 -> 2 x (68 + 34) = 204 cm, en
+    // de omtrek van een euro-krat 60 x 40 is 200 cm. Klopt.
+    $omtrek = dim_bereken_omtrek_cm(
+        $attributes['breedte_cm'] ?? null,
+        $attributes['inslag_cm']  ?? null
+    );
+    if ( $omtrek !== null ) {
+        $attributes['omtrek_cm'] = $omtrek;
+    }
+
     // Booleans — voor aan/uit-filters
     foreach ( [ 'trekband', 'geperforeerd' ] as $field ) {
         $attributes[ $field ] = (bool) get_field( $field, $post->ID );
     }
+
+    // Bedrukking is geen eigenschap van de zak maar een dienst. We leiden het
+    // af uit de SAP-opdruk (zie dim_bedrukking_is_gevuld) in plaats van er een
+    // apart veld voor te maken: geen extra kolom in de import, niets extra's om
+    // gevuld te houden. LET OP: dit is "bewezen mogelijk", geen volledige lijst
+    // — zodra verkoop de echte regel geeft (bv. alles behalve een paar groepen)
+    // hoeft alleen die ene functie te veranderen.
+    $attributes['bedrukking_mogelijk'] = function_exists( 'dim_bedrukking_is_gevuld' )
+        ? dim_bedrukking_is_gevuld( $post->ID )
+        : false;
 
     $priority = get_field('prioriteit', $post->ID);
     $attributes['priority'] = is_numeric($priority) ? (int) $priority : 0;
@@ -250,6 +302,54 @@ function dim_merk_titlecase( string $merk ): string {
 function dim_vnorm( $s ) {
     $s = mb_strtolower( trim( (string) $s ) );
     return preg_replace( '/\s+/', ' ', $s );
+}
+
+/* --------------------------------------------------------------------------
+ * Handschoenen (Just Gloves): eigen, simpele variant-logica.
+ * Groep = basistitel + kleur; MAAT (S/M/L/XL) is de variant-dimensie en komt
+ * als klikbare chips op de Formaat-regel van de detailview (de bestaande
+ * "niet-splitsbaar formaat"-route in products-overview.js).
+ * ------------------------------------------------------------------------ */
+
+// Maat-volgorde: S < M < L < XL. Onbekende maten komen achteraan (alfabetisch).
+function dim_maat_index( string $maat ): int {
+    static $orde = [
+        'xs' => 1, 'extra small' => 1,
+        's'  => 2, 'small'       => 2,
+        'm'  => 3, 'medium'      => 3,
+        'l'  => 4, 'large'       => 4,
+        'xl' => 5, 'extra large' => 5,
+        'xxl' => 6, '2xl' => 6,
+        'xxxl' => 7, '3xl' => 7,
+    ];
+    return $orde[ dim_vnorm( $maat ) ] ?? 99;
+}
+
+// Basistitel = post_title zonder maat-aanduiding aan het eind
+// ("Onderzoekshandschoen nitril XL" -> "Onderzoekshandschoen nitril").
+function dim_handschoen_basistitel( int $post_id ): string {
+    $titel = (string) get_the_title( $post_id );
+    $zonder = preg_replace(
+        '/\s*[-–]?\s*(xs|s|m|l|xl|xxl|2xl|3xl|xxxl|extra\s+small|small|medium|large|extra\s+large)\s*$/i',
+        '', $titel
+    );
+    $zonder = trim( (string) $zonder );
+    return $zonder !== '' ? $zonder : trim( $titel );
+}
+
+function dim_calc_variant_handschoen( int $post_id ): array {
+    $basis = dim_handschoen_basistitel( $post_id );
+    $kleur = trim( (string) get_field( 'kleuren', $post_id ) );
+    $maat  = trim( (string) get_field( 'formaat', $post_id ) );
+    // kleur in de titel: er komt per kleur één kaart, anders heten beide kaarten hetzelfde
+    $titel = trim( $basis . ( $kleur !== '' ? ' ' . mb_strtolower( $kleur ) : '' ) );
+    return [
+        'variant_group'      => 'hs|' . dim_vnorm( $basis ) . '|' . dim_vnorm( $kleur ),
+        'variant_base_title' => $titel,
+        'basis'              => $basis,
+        'kleur'              => $kleur,
+        'maat'               => $maat,
+    ];
 }
 
 /**
@@ -422,11 +522,46 @@ add_action('admin_init', function () {
         }
     }
 
+    /* --- HANDSCHOENEN (Just Gloves): groeperen op basistitel + kleur, ---------
+       met maat als variant-dimensie (chips in de detailview). ---------------- */
+    $hq = new WP_Query([
+        'post_type'      => 'handschoen',
+        'post_status'    => 'any',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+        'no_found_rows'  => true,
+    ]);
+    $hgroups = [];
+    foreach ( $hq->posts as $pid ) {
+        $c = dim_calc_variant_handschoen( $pid );
+        $key = $c['variant_group'];
+        if ( ! isset( $hgroups[ $key ] ) ) {
+            $hgroups[ $key ] = [ 'titel' => $c['variant_base_title'], 'kleur' => $c['kleur'], 'leden' => [] ];
+        }
+        $hgroups[ $key ]['leden'][] = [ 'pid' => $pid, 'maat' => $c['maat'] ];
+    }
+    $h_multi = 0;
+    foreach ( $hgroups as $key => $g ) {
+        $maten = array_values( array_unique( array_filter( array_map( fn( $l ) => $l['maat'], $g['leden'] ) ) ) );
+        usort( $maten, fn( $a, $b ) => [ dim_maat_index( $a ), dim_vnorm( $a ) ] <=> [ dim_maat_index( $b ), dim_vnorm( $b ) ] );
+        if ( count( $g['leden'] ) > 1 ) $h_multi++;
+        foreach ( $g['leden'] as $l ) {
+            update_post_meta( $l['pid'], 'variant_group', $key );
+            update_post_meta( $l['pid'], 'variant_base_title', $g['titel'] );
+            update_post_meta( $l['pid'], 'variant_kleuren',  wp_json_encode( array_values( array_filter( [ $g['kleur'] ] ) ) ) );
+            update_post_meta( $l['pid'], 'variant_diktes',   wp_json_encode( [] ) );
+            update_post_meta( $l['pid'], 'variant_formaten', wp_json_encode( $maten ) );
+            update_post_meta( $l['pid'], 'variant_vormen',   wp_json_encode( [] ) );
+            update_post_meta( $l['pid'], 'variant_count',    count( $g['leden'] ) );
+        }
+    }
+
     wp_die( sprintf(
-        'Klaar. Producten verwerkt: %d | merk_naam bijgewerkt: %d | product-group termen gezet: %d%s | variant-data: %d | variant-groepen: %d (waarvan %d met >1 product; verwacht grid-resultaat: %d).<br>Volgende stappen: 1) ?dim_push_algolia_settings=1  2) RE-INDEX in Algolia Search.',
+        'Klaar. Producten verwerkt: %d | merk_naam bijgewerkt: %d | product-group termen gezet: %d%s | variant-data: %d | variant-groepen: %d (waarvan %d met >1 product; verwacht grid-resultaat: %d).<br>Handschoenen verwerkt: %d | handschoen-groepen: %d (waarvan %d met >1 maat).<br>Volgende stappen: 1) ?dim_push_algolia_settings=1 (alleen bij facet-wijzigingen)  2) ?dim_reindex_producten=1 (of =handschoen voor alleen de handschoenen).',
         count( $q->posts ), $merk_fixed, $terms_set,
         $tax_exists ? '' : ' (taxonomie product-group bestaat niet!)', $variant_set,
-        $totaal_groepen, $multi_groups, $totaal_groepen
+        $totaal_groepen, $multi_groups, $totaal_groepen,
+        count( $hq->posts ), count( $hgroups ), $h_multi
     ) );
 });
 
@@ -483,4 +618,93 @@ add_action('admin_init', function () {
     $client->initIndex($main)->setSettings($settings, ['forwardToReplicas' => true]);
 
     wp_die('Index-settings gepusht naar ' . esc_html($main) . ' (searchableAttributes + attributesForFaceting + attributeForDistinct, incl. replicas).');
+});
+
+/* --------------------------------------------------------------------------
+ * INDEX OPSCHONEN — verwijdert weesrecords uit de Algolia-index: records
+ * waarvan de post niet meer bestaat, in de prullenbak of op concept staat, of
+ * geen product/handschoen (meer) is. Zonder dit blijft een vervallen artikel in
+ * het overzicht staan terwijl het detail leeg is (SAP-export laat artikelen
+ * vervallen; de import verwijdert die posts niet).
+ * Gebruik: wp-admin openen met ?dim_opruim_algolia=1 (of &dry=1 om eerst te kijken).
+ * ------------------------------------------------------------------------ */
+add_action('admin_init', function () {
+    if (!current_user_can('manage_options')) return;
+    if (empty($_GET['dim_opruim_algolia'])) return;
+    @set_time_limit(0);
+    @ini_set('memory_limit', '512M');
+    ignore_user_abort(true);
+
+    $client = dim_algolia_client();
+    if (!$client) {
+        wp_die('Algolia PHP client niet gevonden. Staat de WP Algolia-plugin aan?');
+    }
+
+    $dry    = !empty($_GET['dry']);
+    $prefix = dim_algolia_index_prefix();
+    // Alleen primaire indexen; replicas nemen deletes automatisch over.
+    $kandidaten = [ $prefix . 'searchable_posts', $prefix . 'posts_product', $prefix . 'posts_handschoen' ];
+
+    $bestaand = [];
+    try {
+        $lijst = $client->listIndices();
+        foreach (($lijst['items'] ?? []) as $i) { $bestaand[] = $i['name']; }
+    } catch (\Exception $e) {
+        wp_die('Kon de index-lijst niet ophalen: ' . esc_html($e->getMessage()));
+    }
+
+    $regels = [];
+    $totaal = 0;
+    foreach ($kandidaten as $naam) {
+        if (!in_array($naam, $bestaand, true)) continue;
+        $index   = $client->initIndex($naam);
+        $wees    = [];   // objectID's om te verwijderen
+        $details = [];   // per artikel één regel voor het rapport
+        $gezien  = 0;
+        foreach ($index->browseObjects([
+            'attributesToRetrieve' => ['post_id', 'post_type', 'post_title', 'artikelcode'],
+        ]) as $rec) {
+            $gezien++;
+            $pid  = (int) ($rec['post_id'] ?? 0);
+            $post = $pid ? get_post($pid) : null;
+            if ($post
+                && in_array($post->post_type, ['product', 'handschoen'], true)
+                && $post->post_status === 'publish') {
+                continue;
+            }
+            $wees[]  = (string) $rec['objectID'];
+            $reden   = !$post
+                ? 'post bestaat niet meer'
+                : ($post->post_status !== 'publish' ? 'status: ' . $post->post_status : 'post_type: ' . $post->post_type);
+            $sleutel = $pid ?: ('obj:' . $rec['objectID']);
+            $details[$sleutel] = sprintf('%s — %s — %s',
+                (string) ($rec['artikelcode'] ?? ('post ' . $pid)),
+                (string) ($rec['post_title'] ?? ''),
+                $reden);
+        }
+        if ($wees && !$dry) {
+            foreach (array_chunk($wees, 500) as $batch) {
+                $index->deleteObjects($batch);
+            }
+        }
+        $totaal += count($wees);
+        $regels[] = sprintf('<strong>%s</strong>: %d records bekeken, %d weesrecord(s) over %d artikel(en)%s',
+            esc_html($naam), $gezien, count($wees), count($details), ($dry || !$wees) ? '' : ' — verwijderd');
+        foreach (array_slice($details, 0, 25) as $r) {
+            $regels[] = '&nbsp;&nbsp;&bull; ' . esc_html($r);
+        }
+        if (count($details) > 25) {
+            $regels[] = sprintf('&nbsp;&nbsp;&hellip; en nog %d', count($details) - 25);
+        }
+    }
+    if (!$regels) {
+        $regels[] = 'Geen product-indexen gevonden onder prefix ' . esc_html($prefix);
+    }
+
+    wp_die(sprintf('%sIndex opschonen klaar: %d record(s)%s.<br><br>%s',
+        $dry ? '<strong>DRY RUN</strong> — ' : '',
+        $totaal,
+        $dry ? ' zouden worden verwijderd' : ' verwijderd',
+        implode('<br>', $regels)
+    ));
 });
