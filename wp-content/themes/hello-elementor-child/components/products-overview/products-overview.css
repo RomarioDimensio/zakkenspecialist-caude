@@ -13,36 +13,87 @@
 .dim-products-layout {
     display: flex;
     flex-direction: row;
+    /* flex-start i.p.v. de standaard stretch: anders rekt het detailpaneel
+       mee met de hoogte van het grid en kan het niet sticky blijven. */
+    align-items: flex-start;
     max-width: var(--content-max, 1600px);
     margin-left: auto;
     margin-right: auto;
     width: 100%;
 }
 
-.dim-products-layout.product-open {
-    grid-template-columns: minmax(0, 2fr) minmax(320px, 2fr);
+/* Linkerkolom = de zoekwidget (filterbalk + productgrid). */
+.dim-products-layout > *:not(.dim-right-product-detail-panel) {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
-.dim-products-layout > * {
-    flex: 1;
-}
-
+/* Rechterkolom = het detailpaneel. Dicht is hij 0 breed in plaats van
+   display:none — alleen een element dat in de flow blijft staan kan
+   schuiven. De breedte animeert; overflow houdt de inhoud binnen de
+   krimpende doos zodat er niets uitsteekt tijdens de slide. */
 .dim-products-layout .dim-right-product-detail-panel {
-    display: none;
+    flex: 0 0 0%;
+    min-width: 0;
+    /* ook de HOOGTE dicht. De detail-HTML blijft na sluiten in het paneel
+       staan (dat scheelt opnieuw ophalen), en zonder deze regel houdt het
+       paneel de hoogte van dat product — bij een kort grid zie je dat als
+       een lap wit onder de kaarten. */
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
     background: #fff;
+    transition: flex-basis .45s cubic-bezier(.22, .61, .36, 1),
+                opacity .2s ease;
 }
 
+/* Open: precies de helft, zoals het design (720 van 1440).
+   De inhoud fade't ná de breedte in, zodat je de tekst niet ziet
+   herschikken terwijl het paneel nog groeit.
+   position:sticky + max-height = het paneel scrollt INTERN mee onder de
+   header. Daardoor blijven er twee scrollbars (pagina + paneel) in plaats
+   van drie; de filterbalk levert de zijne in zodra hij dichtschuift. */
 .dim-products-layout.product-open .dim-right-product-detail-panel {
-    display: block;
-
+    flex: 0 0 50%;
+    opacity: 1;
+    position: sticky;
+    top: var(--site-header-h, 148px);
+    max-height: calc(100vh - var(--site-header-h, 148px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
-/* Detail open = grid weg: het detail krijgt de volledige content-zone
-   (1600px). Terug naar de grid gaat via de sluit-pijl. We verbergen
-   alle broers van het detailpaneel i.p.v. een specifiek element, zodat
-   dit blijft werken als de widget-structuur in Elementor wijzigt. */
-.dim-products-layout.product-open > *:not(.dim-right-product-detail-panel) {
-    display: none;
+/* Te smal voor twee kolommen naast elkaar: dan neemt het paneel de volle
+   breedte over en verdwijnt het grid, zoals het hiervoor op elk scherm werkte. */
+@media (max-width: 1024px) {
+    .dim-products-layout.product-open > *:not(.dim-right-product-detail-panel) {
+        display: none;
+    }
+
+    .dim-products-layout.product-open .dim-right-product-detail-panel {
+        flex: 0 0 100%;
+        position: static;
+        max-height: none;
+        overflow: visible;
+    }
+}
+
+/* Pagina op slot terwijl het detail open staat: alleen het paneel scrollt.
+   JS zet .dim-detail-vast op <html> (products-overview.js, zetPaginaVast) en
+   schuift het grid eerst onder de header, zodat het detail bovenaan begint.
+
+   Alleen vanaf 1025px: daaronder neemt het paneel de volle breedte, staat het
+   niet sticky en moet de pagina juist wél gewoon scrollen. */
+@media (min-width: 1025px) {
+    html.dim-detail-vast,
+    html.dim-detail-vast body {
+        overflow: hidden;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dim-products-layout .dim-right-product-detail-panel { transition: none; }
 }
 
 .dim-products-grid {
@@ -55,24 +106,16 @@
     min-width: 0;
 }
 
+/* Blijft altijd zichtbaar: de doos eromheen is dicht 0 breed en clipt hem.
+   display:none zou het schuiven onmogelijk maken. */
 .dim-product-panel-shell {
-    display: none;
+    display: block;
     height: 100%;
 }
 
-.dim-products-layout.product-open .dim-product-panel-shell {
-    display: block;
-}
-
-/* Sticky host: was nodig toen grid + detail zij-aan-zij stonden (detail
-   scrollde intern naast de grid). Nu de grid verdwijnt bij openen stroomt
-   het detail gewoon mee met de pagina — geen interne scrollbar meer.
-   JS zet deze class nog steeds; we neutraliseren hem hier bewust. */
-.dim-products-layout.product-open .dim-sticky-host {
-    position: static;
-    max-height: none;
-    overflow-y: visible;
-}
+/* N.B. JS zet ook nog .dim-sticky-host op het detailpaneel (markStickyHost).
+   Die class heeft geen stijl meer: het sticky-gedrag zit nu rechtstreeks op
+   .dim-right-product-detail-panel hierboven. */
 
 /* Top-balk met het pijltje blijft onder de site-header plakken terwijl
    je door een lang detail scrolt, zodat "terug" altijd bereikbaar is.
@@ -270,7 +313,7 @@
 .dim-swatch.dim-swatch--groot {
     width: 24px;
     height: 24px;
-    border-radius: 5px;
+    border-radius: 50%;
     cursor: pointer;
     padding: 0;
     transition: transform 0.12s ease;
@@ -395,4 +438,58 @@
     body:has(.dim-products-layout.product-open) header {
         visibility: hidden;
     }
+}
+/* ---------------------------------------------------------------
+   Specificatietabel in het detailpaneel — [dim_product_specs].
+   Twee kolommen: het langste label bepaalt de linkerbreedte, alle
+   waardes lijnen daardoor op één lijn uit. Lege velden komen hier niet
+   eens aan (dat filtert de shortcode al).
+   --------------------------------------------------------------- */
+.dim-specs__titel {
+    margin: 0 0 10px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.dim-specs__tabel {
+    width: 100%;
+    border-collapse: collapse;
+    /* auto i.p.v. fixed: de kolom groeit mee met het langste label */
+    table-layout: auto;
+    border-top: var(--border, 1px solid #d9d9d9);
+}
+
+.dim-specs__tabel .dim-spec-rij > th,
+.dim-specs__tabel .dim-spec-rij > td {
+    padding: 9px 0;
+    vertical-align: baseline;
+    text-align: left;
+    font-size: 18px;
+    border: none;
+    background-color: transparent;
+}
+
+.dim-specs__tabel .dim-spec-rij .dim-spec-rij > th {
+    width: 1%;              /* krimp tot de inhoud: het langste label wint */
+    white-space: nowrap;
+    padding-right: 24px;
+    text-align: left;
+    font-weight: 600;
+    color: #6d6e71;
+}
+
+.dim-specs__tabel .dim-spec-rij .dim-spec-rij > td {
+    /* lange waardes (certificeringen, "geschikt voor") mogen afbreken
+       in plaats van de kolom uit elkaar te duwen */
+    overflow-wrap: anywhere;
+}
+
+/* kleurveld: het rondje zegt meer dan de hexcode */
+.dim-spec-kleur {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, .18);
+    vertical-align: -2px;
 }

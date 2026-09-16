@@ -11,11 +11,17 @@
     align-items: center;
     margin-bottom: 20px;
 }
+/* De filterbalk is de eerste kolom; het blok "detail open" onderaan dit
+   bestand animeert die kolom naar 0. Let op: de waarden staan bewust
+   letterlijk in de regels en niet in een custom property — een transition
+   naar een breedte die uit een var() komt blijft in Chrome op de
+   startwaarde hangen. */
 .dim-ais__body {
     display: grid;
     grid-template-columns: 260px 1fr;
     gap: 1.5rem;
     position: relative;
+    transition: grid-template-columns .45s cubic-bezier(.22, .61, .36, 1);
 }
 
 .dim-ais__body .pin-spacer {
@@ -26,7 +32,6 @@
     position: relative;
     overflow-y: auto;
     overflow-anchor: none;
-    margin-top: 72px;
 }
 
 .dim-ais__filters {
@@ -35,6 +40,7 @@
     padding: 1rem 1rem 1rem 0;
     display: flex;
     flex-direction: column;
+    max-width: 360px;
 }
 
 /* fixed when scrolling */
@@ -342,7 +348,7 @@
 .dim-card-swatches .dim-swatch { margin-right: 4px; }
 .dim-card-swatches .dim-swatch:last-child { margin-right: 0; }
 .dim-swatch {
-    width: 14px; height: 14px; border-radius: 3px; display: inline-block;
+    width: 14px; height: 14px; border-radius: 50%; display: inline-block;
     border: 1px solid rgba(0, 0, 0, 0.18); box-sizing: border-box;
 }
 .dim-swatch.is-transparant {
@@ -655,9 +661,22 @@
    detailview (die blijft binnen de content-spine). */
 .dim-ais { max-width: none; padding: 0; }
 .dim-ais__body { gap: 0; }
-.dim-products-layout:not(.product-open) { max-width: none; }
+/* Ook mét open detail volle breedte: grid en paneel staan nu naast elkaar
+   (paneel = 50%, zoals 720 van 1440 in het design). Zou de layout bij openen
+   terugvallen op --content-max, dan verspringt de hele pagina midden in de
+   slide. */
+.dim-products-layout { max-width: none; }
 /* paginaklik scrollt terug naar het grid: netjes onder de sticky header landen */
-#dim-products-fsearch { scroll-margin-top: calc(var(--site-header-h, 148px) + 12px); }
+#dim-products-fsearch {
+    scroll-margin-top: calc(var(--site-header-h, 148px) + 12px);
+}
+
+/* alleen terwijl het detail open staat */
+.dim-products-layout.product-open #dim-products-fsearch {
+    max-height: calc(100vh - var(--site-header-h, 148px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
 
 /* groene balk over de volle breedte (paginering staat buiten de kolommen) */
 #dim-product-search-ais-pagination {
@@ -695,8 +714,8 @@
 #dim-product-search-ais-pagination .ais-Pagination-item--disabled .link-item { opacity: .45; }
 
 /* --- DESIGN 2026 correctie: brede filterkolom die de balk nooit wegdrukt --- */
-/* Filterkolom: minimaal 480px breed, 40px padding links en rechts. */
-.dim-ais__body { grid-template-columns: minmax(480px, 480px) 1fr; }
+/* Filterkolom: 480px breed, 40px padding links en rechts. */
+.dim-ais__body { grid-template-columns: 360px 1fr; }
 .dim-ais__filters { padding: 18px 40px; }
 
 /* De filterkolom telt NIET mee voor de sectiehoogte: het grid bepaalt de
@@ -725,4 +744,119 @@
 /* alle waarden zichtbaar: de open-accordeon niet meer op 900px cappen */
 .dim-ais__filters .dim-ais-filters-inner-container .filter-wrapper .filter-dropdown.open {
     max-height: 4000px;
+}
+
+/* ================== DETAIL OPEN: filters wegduwen ==================
+   Twee standen, één schakelaar — .product-open op .dim-products-layout
+   (gezet door products-overview.js):
+
+     dicht   filters zichtbaar · geen paneel · grid 3 kolommen
+     open    filters uit beeld · paneel 50%  · grid 2 kolommen
+
+   De filterkolom krimpt naar 0 terwijl de balk zelf naar links schuift.
+   Samen leest dat als "het paneel duwt de filters weg"; bij sluiten
+   loopt exact dezelfde beweging andersom.
+   De breedte van het paneel zit in products-overview.css. */
+.dim-ais__filters {
+    transition: transform .45s cubic-bezier(.22, .61, .36, 1),
+                opacity .3s ease;
+}
+
+.dim-products-layout.product-open .dim-ais__body {
+    grid-template-columns: 0px 1fr;
+}
+
+/* Vaste 480px, geen -100%: de balk staat position:absolute met inset:0 in zijn
+   cel, en die cel krimpt tegelijk naar 0 — een percentage zou dus naar 0
+   rekenen en je zou niets zien schuiven. De vaste breedte houdt de balk
+   bovendien in vorm terwijl hij eruit loopt, zodat de tekst niet herschikt. */
+.dim-products-layout.product-open .dim-ais__filters {
+    width: 480px;
+    transform: translateX(-480px);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* De filterbalk zit in een eigen scroll-container. Die moet zijn scrollbar
+   inleveren zodra hij dichtschuift, anders houd je er drie op het scherm. */
+.dim-products-layout.product-open .dim-ais__body > .filter-pin-skeleton {
+    overflow: hidden;
+}
+
+/* Grid: 3 kolommen wordt 2 zodra het paneel de halve breedte pakt.
+   Alleen op schermen die breed genoeg zijn voor twee panelen naast elkaar —
+   daaronder gelden de media-queries hierboven (2 en 1 kolom). */
+@media (min-width: 1201px) {
+    .dim-products-layout.product-open #dim-product-search-ais-hits .ais-Hits-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dim-ais__body,
+    .dim-ais__filters { transition: none; }
+}
+
+/* ================== SORTEREN ==================
+   De dropdown zelf is een Elementor Select met id "sort-products" — opmaak en
+   opties beheer je daar. Hier alleen wat Elementor niet kan: de eigen pijltjes
+   (omhoog/omlaag) rechts in de pil, en de ruimte ernaast.
+
+   appearance:none haalt het pijltje van het besturingssysteem weg; daarna
+   tekenen we ons eigen icoon als achtergrond. Kleuren, rand en radius laten we
+   met rust — die staan goed in Elementor. */
+#sort-products {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-left: 24px;
+    padding-right: 48px;
+    cursor: pointer;
+
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='18' viewBox='0 0 12 18'%3E%3Cpath d='M2.5 7L6 3.5 9.5 7' stroke='%236d6e71' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M2.5 11L6 14.5 9.5 11' stroke='%236d6e71' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 20px center;
+    background-size: 12px 18px;
+}
+
+/* De opties tekent het besturingssysteem; alleen de kleuren zijn van ons. */
+#sort-products option {
+    background: #fff;
+    color: #1a171b;
+}
+
+/* Kruisje in de zoekbalk: wissen zonder het veld te hoeven selecteren.
+   De knop wordt door de JS in de ouder van het invoerveld gezet en verschijnt
+   alleen als er iets in staat (hidden-attribuut). */
+.dim-zoek-houder {
+    position: relative;
+}
+
+.dim-zoek-wissen {
+    position: absolute;
+    top: 50%;
+    right: 75px;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: transparent;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M1 1l10 10M11 1L1 11' stroke='%236d6e71' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    cursor: pointer;
+    line-height: 0;
+}
+
+.dim-zoek-wissen:hover,
+.dim-zoek-wissen:focus-visible {
+    background-color: rgba(0, 0, 0, .07);
+}
+
+/* Het hidden-attribuut alleen is hier niet genoeg: Elementor geeft elke button
+   een eigen display, en dat wint van de display:none die de browser zelf aan
+   [hidden] hangt. Zonder deze regel staat het kruisje er altijd. */
+.dim-zoek-wissen[hidden] {
+    display: none !important;
 }

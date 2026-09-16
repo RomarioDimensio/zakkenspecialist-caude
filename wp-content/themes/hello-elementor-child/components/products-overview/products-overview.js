@@ -14,7 +14,45 @@
 
     function setOpenState(isOpen) {
         layout.classList.toggle('product-open', isOpen);
-        if (isOpen) requestAnimationFrame(markStickyHost);
+        if (isOpen) {
+            requestAnimationFrame(markStickyHost);
+            zetPaginaVast();
+        } else {
+            geefPaginaVrij();
+        }
+    }
+
+    /* --- Scrollen terwijl het detail open staat ----------------------------
+       Met het paneel open hoort alleen dat paneel te scrollen. Scrolde de
+       pagina mee, dan liep je door een lang productgrid terwijl je een detail
+       leest — dat is precies wat er niet fijn aan was.
+
+       Aanpak: eerst het grid netjes onder de header schuiven (dan begint het
+       detail altijd bovenaan in beeld), daarna de pagina op slot. Het paneel
+       heeft zijn eigen max-height en overflow, dus dat blijft scrollen.
+
+       Het slot zelf staat in de CSS en geldt alleen vanaf 1025px. Daaronder
+       neemt het paneel de volle breedte en moet de pagina juist wél scrollen. */
+    function headerHoogte() {
+        const waarde = parseInt(
+            getComputedStyle(document.documentElement).getPropertyValue('--site-header-h'), 10
+        );
+        return Number.isFinite(waarde) ? waarde : 148;
+    }
+
+    function zetPaginaVast() {
+        const anker = document.getElementById('dim-products-fsearch');
+        if (anker) {
+            const doel = window.scrollY + anker.getBoundingClientRect().top - headerHoogte();
+            // instant, niet smooth: we zetten de pagina meteen daarna op slot en
+            // een lopende smooth-scroll zou daar halverwege in blijven steken
+            window.scrollTo(0, Math.max(0, doel));
+        }
+        document.documentElement.classList.add('dim-detail-vast');
+    }
+
+    function geefPaginaVrij() {
+        document.documentElement.classList.remove('dim-detail-vast');
     }
 
     // Maak de detail-KOLOM (direct kind van .dim-products-layout) de sticky host,
@@ -382,6 +420,20 @@
         metaEl.innerHTML = `<input type="hidden" name="dim_artikelcode" value="${me.artikelcode || ''}">` +
             `<input type="hidden" name="dim_post_id" value="${me.post_id || productId}">`;
         panelContent.appendChild(metaEl);
+
+        /* --- Variantkiezers: AAN/UIT via het detailtemplate ---------------------
+           De kleur-, dikte-, formaat-, vorm- en verpakkingsknoppen staan niet in
+           het design van 2026, maar de code blijft hier volledig staan — de kans
+           is groot dat er alsnog naar gevraagd wordt.
+
+           Terugzetten kost één handeling: sleep in het Elementor-detailtemplate
+           (post 1498) een Shortcode-widget en zet daar [dim_product_varianten]
+           in. Dat zet alleen de schakelaar om; de knoppen injecteren zichzelf
+           daarna op hun eigen plek in het paneel, net als voorheen.
+
+           Alles hierboven blijft wél draaien: de verborgen artikelcode die de
+           offerte-flow meestuurt heeft niets met de knoppen te maken. */
+        if (!panelContent.querySelector('#dim-varianten')) return;
 
         // N.B. geen harde eis meer op kwaliteit/type/formaat: handschoenen hebben
         // bv. geen 'type' maar wél varianten (maten). variant_group is de bron.

@@ -45,12 +45,10 @@ add_shortcode('dim_product_search', function ($atts = []) use (&$dim_product_sea
         'hits_per_page' => 12,               // design 2026: max 12 per pagina, groene pagineringsbalk
         'filters'       => "",               // Algolia filter-string, bv. post_type:handschoen
         'toon_filters'  => "ja",             // "nee" = geen filter-zijbalk (bv. just-gloves)
-        'toon_balk'     => "ja",             // "nee" = geen stats/sorteer-balk boven het grid
         'skeleton'      => "",               // aantal skeleton-kaarten (leeg = hits_per_page, max 24)
     ], $atts);
 
     $toonFilters = strtolower(trim($atts['toon_filters'])) !== 'nee';
-    $toonBalk    = strtolower(trim($atts['toon_balk'])) !== 'nee';
     $skeletonN   = $atts['skeleton'] !== '' ? max(1, (int) $atts['skeleton']) : min(24, (int) $atts['hits_per_page']);
 
     if ($isTaxonomyPage) {
@@ -140,12 +138,11 @@ add_shortcode('dim_product_search', function ($atts = []) use (&$dim_product_sea
             </div>
             <?php endif; ?>
             <main class="dim-ais__results">
-                <?php if ($toonBalk) : ?>
-                <div class="dim-ais-body-actions">
-                    <div id="dim-product-search-ais-stats"></div>
-                    <div id="dim-product-search-ais-sortby"></div>
-                </div>
-                <?php endif; ?>
+                <?php // DESIGN 2026: hier stond een balk met "x resultaten" en een
+                      // sorteer-dropdown. Die is vervallen — sorteren gebeurt via de
+                      // groene knop in de bovenbalk (zie algolia-product-search.js,
+                      // bereidSorteerKnopVoor) en het aantal resultaten staat niet
+                      // meer in het ontwerp. ?>
                 <?php // Skeleton-kaarten (server-side): reserveren direct de echte hoogte van
                       // het grid terwijl Algolia nog laadt. Zo komt een #anker-jump
                       // (bv. /onze-producten/#section-zakkencalculator) meteen goed uit en

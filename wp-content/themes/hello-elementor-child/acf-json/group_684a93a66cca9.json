@@ -29,27 +29,6 @@
             "preview_size": "medium"
         },
         {
-            "key": "field_69d77475d6338",
-            "label": "Alias",
-            "name": "alias",
-            "aria-label": "",
-            "type": "text",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "maxlength": "",
-            "allow_in_bindings": 0,
-            "placeholder": "",
-            "prepend": "",
-            "append": ""
-        },
-        {
             "key": "field_68cc10db7e5dc",
             "label": "Artikelcode",
             "name": "artikelcode",
@@ -160,74 +139,9 @@
             "append": ""
         },
         {
-            "key": "field_68fb78c0a4166",
-            "label": "kleuren kiezer",
-            "name": "kleuren_kiezer",
-            "aria-label": "",
-            "type": "color_picker",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "enable_opacity": 0,
-            "return_format": "string",
-            "allow_in_bindings": 0,
-            "show_custom_palette": 0,
-            "show_color_wheel": 1,
-            "custom_palette_source": "",
-            "palette_colors": ""
-        },
-        {
-            "key": "field_68cc1170ccd3a",
-            "label": "Verwijzing naar DOC/VVO",
-            "name": "verwijzing_naar_docvvo",
-            "aria-label": "",
-            "type": "text",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "maxlength": "",
-            "allow_in_bindings": 0,
-            "placeholder": "",
-            "prepend": "",
-            "append": ""
-        },
-        {
             "key": "field_68cc1165ccd39",
             "label": "Formaat",
             "name": "formaat",
-            "aria-label": "",
-            "type": "text",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "maxlength": "",
-            "allow_in_bindings": 0,
-            "placeholder": "",
-            "prepend": "",
-            "append": ""
-        },
-        {
-            "key": "field_68cc114a7e5de",
-            "label": "Groep",
-            "name": "groep",
             "aria-label": "",
             "type": "text",
             "instructions": "",
@@ -687,27 +601,6 @@
             "append": ""
         },
         {
-            "key": "field_684a94a45f3ec",
-            "label": "Product 3d model shortcode",
-            "name": "product_3d_model_shortcode",
-            "aria-label": "",
-            "type": "text",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "maxlength": "",
-            "allow_in_bindings": 0,
-            "placeholder": "",
-            "prepend": "",
-            "append": ""
-        },
-        {
             "key": "field_684a93e95f3de",
             "label": "Merk naam",
             "name": "merk_naam",
@@ -750,92 +643,6 @@
             "append": ""
         },
         {
-            "key": "field_69ca804a014f0",
-            "label": "EAN banderol",
-            "name": "ean_banderol",
-            "aria-label": "",
-            "type": "text",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "maxlength": "",
-            "allow_in_bindings": 0,
-            "placeholder": "",
-            "prepend": "",
-            "append": ""
-        },
-        {
-            "key": "field_69ca8052014f1",
-            "label": "EAN doos",
-            "name": "ean_doos",
-            "aria-label": "",
-            "type": "text",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "maxlength": "",
-            "allow_in_bindings": 0,
-            "placeholder": "",
-            "prepend": "",
-            "append": ""
-        },
-        {
-            "key": "field_69ca805d014f2",
-            "label": "EAN pallet",
-            "name": "ean_pallet",
-            "aria-label": "",
-            "type": "text",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "maxlength": "",
-            "allow_in_bindings": 0,
-            "placeholder": "",
-            "prepend": "",
-            "append": ""
-        },
-        {
-            "key": "field_68df968d193f4",
-            "label": "Prioriteit",
-            "name": "prioriteit",
-            "aria-label": "",
-            "type": "number",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": 0,
-            "min": "",
-            "max": "",
-            "allow_in_bindings": 0,
-            "placeholder": "",
-            "step": "",
-            "prepend": "",
-            "append": ""
-        },
-        {
             "key": "field_69d5a42aa7c9b",
             "label": "360 video view",
             "name": "360_video_view",
@@ -855,27 +662,6 @@
             "max_size": "",
             "mime_types": "",
             "allow_in_bindings": 0
-        },
-        {
-            "key": "field_69d564ec1e2aa",
-            "label": "Custom Product url",
-            "name": "custom_product_url",
-            "aria-label": "",
-            "type": "text",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "maxlength": "",
-            "allow_in_bindings": 0,
-            "placeholder": "",
-            "prepend": "",
-            "append": ""
         },
         {
             "key": "field_dz_breedte_cm",
@@ -1065,48 +851,6 @@
             "ui": 1,
             "ajax": 0,
             "placeholder": ""
-        },
-        {
-            "key": "field_dz_dikte_eenheid",
-            "label": "Dikte eenheid (T / my / mm)",
-            "name": "dikte_eenheid",
-            "aria-label": "",
-            "type": "text",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "maxlength": "",
-            "placeholder": "",
-            "prepend": "",
-            "append": ""
-        },
-        {
-            "key": "field_dz_dikte_waarde",
-            "label": "Dikte waarde",
-            "name": "dikte_waarde",
-            "aria-label": "",
-            "type": "number",
-            "instructions": "",
-            "required": 0,
-            "conditional_logic": 0,
-            "wrapper": {
-                "width": "",
-                "class": "",
-                "id": ""
-            },
-            "default_value": "",
-            "min": "",
-            "max": "",
-            "step": "",
-            "placeholder": "",
-            "prepend": "",
-            "append": ""
         }
     ],
     "location": [
@@ -1130,5 +874,5 @@
     "display_title": "",
     "allow_ai_access": false,
     "ai_description": "",
-    "modified": 1785137446
+    "modified": 1789546354
 }

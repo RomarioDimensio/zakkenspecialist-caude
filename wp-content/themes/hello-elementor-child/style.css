@@ -9,43 +9,6 @@
 /*Version: 3.5.9*/
 /*Updated: 2025-09-12 08:25:17*/
 
-/**!*/
-
-/*!* -------------------------------------------------------------*/
-/*   Knoppen (Elementor global classes: button-text / button-icon)*/
-/*   ------------------------------------------------------------- *!*/
-
-/*!* Knoptekst die niet past afkappen met een ellipsis (…).*/
-/*   Let op: text-overflow werkt niet op flex-containers, daarom*/
-/*   display block + line-height voor de verticale centrering*/
-/*   (hoogte 50px minus 2x 1px border). *!*/
-/*.button-wrapper .button-text {*/
-/*	display: block !important;*/
-/*	min-width: 0;*/
-/*	max-width: 100%;*/
-/*	overflow: hidden;*/
-/*	text-overflow: ellipsis;*/
-/*	white-space: nowrap;*/
-/*	text-align: center;*/
-/*	line-height: 48px;*/
-/*	padding: 0 20px;*/
-/*}*/
-
-/*!* Productkaarten: op smallere schermen werd de foto (vaste hoogte,*/
-/*   breedte auto) smaller dan de kaart, waardoor de knop buiten het*/
-/*   plaatje viel. Foto vult nu altijd de kaartbreedte. *!*/
-/*@media (max-width: 1024px) {*/
-/*	.card-product-categorie img.e-image-base {*/
-/*		width: 100%;*/
-/*		object-fit: cover;*/
-/*	}*/
-
-/*	!* Knop gelijk laten lopen met de foto (kaart heeft 10px padding) *!*/
-/*	.card-product-categorie .button-wrapper.btn-small-wrapper {*/
-/*		left: 10px;*/
-/*		width: calc(100% - 20px);*/
-/*	}*/
-/*}*/
 
 /* -------------------------------------------------------------
    Layout: maximale breedtes (één plek om te tunen)
@@ -54,7 +17,7 @@
    ------------------------------------------------------------- */
 :root {
 	--content-max: 1248px;
-	--text-max: 1140px;
+    --txt-container-width: 1160px;
 }
 
 /* Utility-classes voor Elementor (atomic): zet ze op een container
@@ -68,7 +31,7 @@
 }
 
 .is-max-text {
-	max-width: var(--text-max);
+	max-width: var(--txt-container-width);
 	margin-left: auto;
 	margin-right: auto;
 	width: 100%;

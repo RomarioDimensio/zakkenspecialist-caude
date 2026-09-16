@@ -9,7 +9,7 @@
         return;
     }
 
-    const { searchBox, refinementList, rangeInput, toggleRefinement, configure, clearRefinements, stats, sortBy, hits, pagination, menuSelect } = instantsearch.widgets;
+    const { searchBox, refinementList, rangeInput, toggleRefinement, configure, clearRefinements, hits, pagination, menuSelect } = instantsearch.widgets;
     const searchClient = algoliasearch(appId, searchKey);
 
     /* --- Nette, stabiele filter-URL's --------------------------------------
@@ -168,6 +168,9 @@
         .find(i => !i.closest('#dim-products-fsearch') && !i.closest('#wpadminbar')
                 && !i.closest('.dzs-hzoek') && i.offsetParent !== null);
 
+    // het kruisje in de zoekbalk; wordt bij de eerste render aangemaakt
+    let zoekWissenKnop = null;
+
     const koppelTopSearch = instantsearch.connectors.connectSearchBox((renderOptions, isFirstRender) => {
         const { refine, query } = renderOptions;
         if (isFirstRender) {
@@ -181,16 +184,138 @@
             }
             let t;
             topSearchInput.addEventListener('input', () => {
+                // direct meeschakelen, niet pas na de debounce
+                if (zoekWissenKnop) zoekWissenKnop.hidden = !topSearchInput.value;
                 clearTimeout(t);
                 t = setTimeout(() => refine(topSearchInput.value), 250);
             });
             // linker zoekbox verbergen — de bovenste neemt het over
             document.querySelector('#dim-product-search-ais-searchbox')?.closest('.filter-wrapper')?.style.setProperty('display', 'none');
+
+            /* Kruisje in de zoekbalk, alleen zichtbaar als er iets in staat.
+               We hangen hem in de ouder van het veld en zetten die op relative;
+               de knop zelf ligt rechts in het veld (opmaak staat in de CSS).
+               type="button", anders verstuurt hij het Elementor-formulier. */
+            const houder = topSearchInput.parentElement;
+            if (houder && !houder.querySelector('.dim-zoek-wissen')) {
+                houder.classList.add('dim-zoek-houder');
+
+                zoekWissenKnop = document.createElement('button');
+                zoekWissenKnop.type = 'button';
+                zoekWissenKnop.className = 'dim-zoek-wissen';
+                zoekWissenKnop.setAttribute('aria-label', 'Zoekopdracht wissen');
+                zoekWissenKnop.hidden = true;
+
+                zoekWissenKnop.addEventListener('click', () => {
+                    topSearchInput.value = '';
+                    refine('');
+                    topSearchInput.focus();
+                });
+
+                houder.appendChild(zoekWissenKnop);
+            }
         }
+
         if (document.activeElement !== topSearchInput && (topSearchInput.value || '') !== (query || '')) {
             topSearchInput.value = query || '';
         }
+        // het kruisje volgt wat er in het veld staat, niet wat Algolia terugstuurt:
+        // tijdens het typen loopt de query 250ms achter
+        if (zoekWissenKnop) zoekWissenKnop.hidden = !topSearchInput.value;
     });
+
+    /* --- Sorteeropties -------------------------------------------------------
+       NIET dynamisch, en dat kan ook niet: elke optie is een eigen Algolia-index
+       (een replica), aangemaakt door components/algolia/algolia.php via
+       ?dim_push_algolia_replicas=1. De zoeksleutel in de browser mag geen
+       indexen opvragen, dus de lijst hoort hier te staan.
+
+       Komt er een sorteervolgorde bij? Dan twee plekken: de replica in
+       algolia.php, en een regel hieronder. */
+    const SORTEER_OPTIES = [
+        { value: indexNameAlgoliaSearch, label: 'Standaard' },
+        { value: `${indexNameAlgoliaSearch}_priority_asc`, label: 'Prioriteit' },
+        { value: `${indexNameAlgoliaSearch}_name_asc`, label: 'Naam A–Z' },
+        { value: `${indexNameAlgoliaSearch}_date_desc`, label: 'Nieuwste' },
+    ];
+
+    /* Vertaling van wat er in de Elementor-dropdown staat naar de index.
+       We kijken eerst naar de waarde van de optie en anders naar de tekst,
+       allebei kleingeschreven. Zo werkt "prio", "Prioriteit" en "priority"
+       allemaal, en kun je in Elementor een optie bijzetten zonder hier iets
+       te wijzigen — zolang de replica in algolia.php maar bestaat. */
+    const SORTEER_PER_SLEUTEL = {
+        'standaard':  indexNameAlgoliaSearch,
+        'default':    indexNameAlgoliaSearch,
+        '':           indexNameAlgoliaSearch,
+        'prio':       `${indexNameAlgoliaSearch}_priority_asc`,
+        'prioriteit': `${indexNameAlgoliaSearch}_priority_asc`,
+        'priority':   `${indexNameAlgoliaSearch}_priority_asc`,
+        'naam':       `${indexNameAlgoliaSearch}_name_asc`,
+        'naam a–z':   `${indexNameAlgoliaSearch}_name_asc`,
+        'naam a-z':   `${indexNameAlgoliaSearch}_name_asc`,
+        'name':       `${indexNameAlgoliaSearch}_name_asc`,
+        'nieuwste':   `${indexNameAlgoliaSearch}_date_desc`,
+        'nieuw':      `${indexNameAlgoliaSearch}_date_desc`,
+        'datum':      `${indexNameAlgoliaSearch}_date_desc`,
+    };
+
+    const indexVoorOptie = (optie) => optie && (
+        SORTEER_PER_SLEUTEL[(optie.value || '').trim().toLowerCase()]
+        || SORTEER_PER_SLEUTEL[(optie.text || '').trim().toLowerCase()]
+    );
+
+    /* "Wis alle filters" is een Elementor-knop met id "dim-remove-filters". Dat
+       id staat op de tekst-span ín de knop, dus we zoeken de klikbare <a>/<button>
+       eromheen — anders vangt de knop de klik nog voordat de span hem ziet.
+       Let op: dit wist de filters, niet de zoekterm. Dat is ook wat er op staat. */
+    const wisFiltersSpan = document.getElementById('dim-remove-filters');
+    const wisFiltersKnop = wisFiltersSpan && (wisFiltersSpan.closest('a, button') || wisFiltersSpan);
+
+    const koppelWisFilters = wisFiltersKnop && instantsearch.connectors.connectClearRefinements(
+        (renderOptions, isFirstRender) => {
+            const { refine } = renderOptions;
+            if (!isFirstRender) return;
+
+            wisFiltersKnop.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Eerst de zoekterm leeg, dan de filters. refine() doet de
+                // zoekopdracht, dus dit gaat samen in één ronde naar Algolia.
+                if (search.helper) search.helper.setQuery('');
+                refine();
+            });
+
+            // Bewust geen uitgeschakelde staat: de knop blijft altijd klikbaar,
+            // ook als er niets te wissen valt. Scheelt een balk die verspringt
+            // zodra je je eerste filter aanzet.
+        }
+    );
+
+    /* De sorteer-dropdown is een gewone Elementor Select met id "sort-products".
+       We laten hem staan zoals hij is — opmaak en opties beheer jij daar — en
+       hangen er alleen gedrag aan. Staat hij er niet, dan gebeurt er niets. */
+    const sorteerSelect = document.getElementById('sort-products');
+
+    const koppelSorteerSelect = sorteerSelect && instantsearch.connectors.connectSortBy(
+        (renderOptions, isFirstRender) => {
+            const { refine, currentRefinement } = renderOptions;
+
+            if (isFirstRender) {
+                sorteerSelect.addEventListener('change', () => {
+                    const index = indexVoorOptie(sorteerSelect.options[sorteerSelect.selectedIndex]);
+                    if (index) refine(index);
+                    else console.warn('DIM: onbekende sorteeroptie', sorteerSelect.value);
+                });
+            }
+
+            // Terug de andere kant op: bij een deeplink (?sorteer=naam) of de
+            // terug-knop van de browser moet de dropdown de actieve stand tonen.
+            const passend = [...sorteerSelect.options].find((o) => indexVoorOptie(o) === currentRefinement);
+            if (passend && sorteerSelect.value !== passend.value) {
+                sorteerSelect.value = passend.value;
+            }
+        }
+    );
 
     const widgetsArray = [
         topSearchInput
@@ -200,23 +325,8 @@
                 placeholder: 'Zoek op naam of artikelnummer...',
                 showSubmit: false,
             })),
-        wanneer('#dim-product-search-ais-stats', () => stats({
-            container: '#dim-product-search-ais-stats',
-            templates: {
-                text(data, { html }) {
-                    return html`${data.nbHits} resultaten`;
-                }
-            }
-        })),
-        wanneer('#dim-product-search-ais-sortby', () => sortBy({
-            container: '#dim-product-search-ais-sortby',
-            items: [
-                { value: indexNameAlgoliaSearch, label: 'Standaard' },
-                { value: `${indexNameAlgoliaSearch}_priority_asc`, label: 'Prioriteit' },
-                { value: `${indexNameAlgoliaSearch}_name_asc`, label: 'Naam A–Z' },
-                { value: `${indexNameAlgoliaSearch}_date_desc`, label: 'Nieuwste' },
-            ],
-        })),
+        koppelSorteerSelect ? koppelSorteerSelect({ items: SORTEER_OPTIES }) : null,
+        koppelWisFilters ? koppelWisFilters({}) : null,
         wanneer('#dim-product-search-ais-clear', () => clearRefinements({
             container: '#dim-product-search-ais-clear',
             templates: {
@@ -333,6 +443,7 @@
 
     search.addWidgets(widgetsArray.filter(Boolean))
     search.start();
+
 
     /* --- Skeleton opruimen + #anker-correctie ------------------------------
        De producten komen async binnen; tot die tijd reserveert een server-side

@@ -21,11 +21,14 @@
  * Excel als breedte teruggeeft is precies omtrek / 2 — we tonen hem er dus bij,
  * want dat is de maat die op de verpakking staat.
  *
- * Dit bestand vervangt het inline script uit de Elementor Custom-Code-snippet
- * "Zakkencalculator" (post #4954, Body End, conditie Page #200). Het onderschept submit op DOCUMENT-niveau in de
- * capture-fase, dus vóór de listener op het formulier zelf; zolang dat oude
- * script er nog staat, komt het niet meer aan de beurt. Weghalen mag (en is
- * netter), maar is niet nodig om dit te laten werken.
+ * Dit bestand is de ENIGE calculator-code. Het verving het inline script uit de
+ * Elementor Custom-Code-snippet "Zakkencalculator" (post #4954, Body End,
+ * conditie Page #200); die snippet is inmiddels verwijderd.
+ *
+ * Let op bij wijzigen: dit bestand leunde aanvankelijk op dat snippet voor het
+ * radio-gedrag van Vierkant/Rond. Dat zit nu hieronder in kiesVorm(), zodat er
+ * niets meer buiten het thema nodig is. Submit wordt op DOCUMENT-niveau in de
+ * capture-fase onderschept, dus vóór een eventuele listener op het formulier.
  * ------------------------------------------------------------------------- */
 (function () {
     'use strict';
@@ -74,20 +77,43 @@
             if (el) el.style.display = zichtbaar.indexOf(el) !== -1 ? 'block' : 'none';
         });
 
+        // Zelfde val als bij de invoervelden hierboven: expliciet 'block', niet ''.
+        // Elementor verbergt de ronde afbeelding standaard
+        // (.elementor .e-e26be0d-b492ae7{display:none} in local-200-frontend-*.css),
+        // en een lege inline-waarde haalt alleen de inline stijl weg — daarna
+        // wint die regel gewoon weer en blijft de afbeelding onzichtbaar.
         const vierkantImg = document.getElementById('calc-square-img');
         const rondImg     = document.getElementById('calc-round-img');
-        if (vierkantImg) vierkantImg.style.display = rond ? 'none' : '';
-        if (rondImg)     rondImg.style.display     = rond ? '' : 'none';
+        if (vierkantImg) vierkantImg.style.display = rond ? 'none' : 'block';
+        if (rondImg)     rondImg.style.display     = rond ? 'block' : 'none';
     }
 
-    // De checkboxes gedragen zich als radio's; de inline listeners doen dat al,
-    // wij hangen er alleen ons eigen tonen/verbergen achteraan.
+    /* Vierkant en Rond zijn in Elementor checkboxes, maar horen zich als radio's
+       te gedragen: precies één van de twee staat aan.
+
+       Dat regelde vroeger het inline script uit de Elementor Custom-Code-snippet
+       "Zakkencalculator" (post #4954). Die snippet is weg, en daarmee verdween
+       ook het uitvinken van de ander — je zag dan beide knoppen tegelijk actief.
+       Daarom doet dit bestand het nu zelf, en is het niet langer afhankelijk van
+       iets wat buiten het thema staat. */
+    function kiesVorm(gekozen) {
+        const ander = gekozen === veld.rond ? veld.vierkant : veld.rond;
+        // je kunt de actieve knop niet uitzetten — er moet altijd een vorm aan staan
+        gekozen.checked = true;
+        if (ander) ander.checked = false;
+        toonVelden();
+    }
+
     [veld.vierkant, veld.rond].forEach((cb) => {
-        if (cb) cb.addEventListener('change', () => setTimeout(toonVelden, 0));
+        if (cb) cb.addEventListener('change', () => setTimeout(() => kiesVorm(cb), 0));
     });
-    // Nu meteen, en nog een keer na DOMContentLoaded: het inline script zet daar
-    // zijn eigen begintoestand (o.a. het hoogteveld verbergen) en draait eerder
-    // dan wij, omdat het hoger in de body staat. Het laatste woord is van ons.
+
+    // Begintoestand: staat er niets aan (of allebei), dan is Vierkant de standaard.
+    if (veld.vierkant && veld.rond && veld.vierkant.checked === veld.rond.checked) {
+        veld.vierkant.checked = true;
+        veld.rond.checked = false;
+    }
+
     toonVelden();
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => setTimeout(toonVelden, 0));
@@ -196,10 +222,36 @@
     /* --- Submit onderscheppen ----------------------------------------------
        Capture op document: dit draait vóór de capture-listener op het formulier
        zelf, dus vóór het oude inline script én vóór Elementor's eigen mailer. */
-    document.addEventListener('submit', function (e) {
-        if (e.target !== form) return;
+    /* Berekenen in plaats van versturen.
+       Twee ingangen, want het Atomic Form van Elementor vangt allebei:
+
+         submit  — als de bezoeker Enter drukt in een invoerveld
+         click   — als hij op "Bereken" drukt; Elementor hangt daar zijn eigen
+                   afhandeling aan en die kwam vóór onze submit-listener. Je
+                   kreeg dan het formulierbericht "Great! We've received your
+                   information." te zien in plaats van de uitkomst.
+
+       Allebei in de capture-fase op document, dus vóór de listeners van
+       Elementor op de knop en op het formulier zelf. */
+    function berekenEnToon(e) {
         e.preventDefault();
         e.stopImmediatePropagation();
         toon(bereken());
+    }
+
+    document.addEventListener('submit', function (e) {
+        if (e.target !== form) return;
+        berekenEnToon(e);
+    }, true);
+
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest) return;
+        // Let op: NIET matchen op [type="submit"]. Elementor schrijft dat
+        // attribuut niet in de HTML — een <button> ín een formulier is van
+        // zichzelf al submit. De property zegt "submit", de attribuutselector
+        // vindt niets, en dan liep de klik gewoon door naar Elementor.
+        const knop = e.target.closest('button, input');
+        if (!knop || knop.type !== 'submit' || !form.contains(knop)) return;
+        berekenEnToon(e);
     }, true);
 })();

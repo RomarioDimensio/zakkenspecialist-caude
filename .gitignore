@@ -12,6 +12,7 @@ wp-content/themes/*
 
 wp-content/plugins/*
 !wp-content/plugins/dim-*/
+!wp-content/plugins/zakkenspecialist-*/
 !wp-content/plugins/your-custom-plugin/
 
 wp-content/uploads/
