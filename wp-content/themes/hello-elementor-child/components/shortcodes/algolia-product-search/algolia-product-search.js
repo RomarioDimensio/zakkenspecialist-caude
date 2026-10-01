@@ -9,7 +9,7 @@
         return;
     }
 
-    const { searchBox, refinementList, rangeInput, toggleRefinement, configure, clearRefinements, hits, pagination, menuSelect } = instantsearch.widgets;
+    const { searchBox, refinementList, rangeInput, toggleRefinement, configure, stats, hits, pagination, menuSelect } = instantsearch.widgets;
     const searchClient = algoliasearch(appId, searchKey);
 
     /* --- Nette, stabiele filter-URL's --------------------------------------
@@ -269,27 +269,96 @@
        id staat op de tekst-span ín de knop, dus we zoeken de klikbare <a>/<button>
        eromheen — anders vangt de knop de klik nog voordat de span hem ziet.
        Let op: dit wist de filters, niet de zoekterm. Dat is ook wat er op staat. */
-    const wisFiltersSpan = document.getElementById('dim-remove-filters');
-    const wisFiltersKnop = wisFiltersSpan && (wisFiltersSpan.closest('a, button') || wisFiltersSpan);
+    /* "Wis alle filters" staat op twee plekken: in de bovenbalk op desktop
+       (#dim-remove-filters, een Elementor-knop) en in de kopbalk van het
+       filterscherm op klein scherm (.dim-filter-wissen, uit de shortcode).
+       Allebei doen hetzelfde, dus één listener die op beide matcht.
 
-    const koppelWisFilters = wisFiltersKnop && instantsearch.connectors.connectClearRefinements(
+       Op document in de capture-fase, net als de filterknop: Elementor vangt
+       klikken op zijn eigen elementen anders eerder af. */
+    const WIS_KNOPPEN = '#dim-remove-filters, .dim-filter-wissen';
+
+    const koppelWisFilters = instantsearch.connectors.connectClearRefinements(
         (renderOptions, isFirstRender) => {
             const { refine } = renderOptions;
             if (!isFirstRender) return;
 
-            wisFiltersKnop.addEventListener('click', (e) => {
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest || !e.target.closest(WIS_KNOPPEN)) return;
                 e.preventDefault();
+                e.stopImmediatePropagation();
+
                 // Eerst de zoekterm leeg, dan de filters. refine() doet de
                 // zoekopdracht, dus dit gaat samen in één ronde naar Algolia.
                 if (search.helper) search.helper.setQuery('');
                 refine();
-            });
+
+                // Op klein scherm is wissen het einde van de handeling: terug
+                // naar de resultaten.
+                if (window.matchMedia('(max-width: 1023px)').matches) {
+                    document.documentElement.classList.remove('dim-filters-open');
+                    const t = document.getElementById('mobile-filter-toggle');
+                    if (t) t.setAttribute('aria-expanded', 'false');
+                }
+            }, true);
 
             // Bewust geen uitgeschakelde staat: de knop blijft altijd klikbaar,
             // ook als er niets te wissen valt. Scheelt een balk die verspringt
             // zodra je je eerste filter aanzet.
         }
     );
+
+    /* --- Filterscherm onder 1024 -------------------------------------------
+       Daar staan filter, overzicht en detail niet naast elkaar maar over
+       elkaar. Het filtericoon (#mobile-filter-toggle) schuift het filterscherm
+       vanaf links in beeld; de CSS doet de beweging, hier alleen de schakelaar.
+
+       De class staat op <html> en niet op het paneel zelf, omdat de pagina
+       eronder tegelijk op slot moet — anders scroll je door het overzicht
+       terwijl je in de filters staat. */
+    const filterKnop = document.getElementById('mobile-filter-toggle');
+
+    if (filterKnop) {
+        const zetFilters = (open) => {
+            document.documentElement.classList.toggle('dim-filters-open', open);
+            filterKnop.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+
+        filterKnop.setAttribute('aria-expanded', 'false');
+
+        // Luisteren op DOCUMENT in de capture-fase, niet op de knop zelf.
+        // Elementor hangt eigen afhandeling aan zijn elementen en die kwam er
+        // soms eerder bij; dezelfde reden als bij de Bereken-knop van de
+        // zakkencalculator. Zo zijn we altijd eerst.
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest) return;
+
+            if (e.target.closest('#mobile-filter-toggle')) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                zetFilters(!document.documentElement.classList.contains('dim-filters-open'));
+                return;
+            }
+
+            // het kruisje rechtsboven in het filterscherm
+            if (e.target.closest('.dim-filter-sluiten')) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                zetFilters(false);
+            }
+        }, true);
+
+        // Escape sluit, net als bij de header-zoek
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') zetFilters(false);
+        });
+
+        // Van klein naar groot scherm: het scherm hoort dan niet open te blijven
+        // staan, want daar is de filterbalk gewoon een kolom.
+        window.addEventListener('resize', () => {
+            if (window.matchMedia('(min-width: 1024px)').matches) zetFilters(false);
+        });
+    }
 
     /* De sorteer-dropdown is een gewone Elementor Select met id "sort-products".
        We laten hem staan zoals hij is — opmaak en opties beheer jij daar — en
@@ -327,15 +396,13 @@
             })),
         koppelSorteerSelect ? koppelSorteerSelect({ items: SORTEER_OPTIES }) : null,
         koppelWisFilters ? koppelWisFilters({}) : null,
-        wanneer('#dim-product-search-ais-clear', () => clearRefinements({
-            container: '#dim-product-search-ais-clear',
+        /* Teller bovenaan de filterlijst. Staat waar eerder de reset-link
+           "Alle zakken" zat: wissen gebeurt nu via "Wis alle filters". */
+        wanneer('#dim-product-search-ais-stats', () => stats({
+            container: '#dim-product-search-ais-stats',
             templates: {
-                resetLabel: 'Alle zakken'   // design 2026: reset-link heet "Alle zakken"
+                text: (data, { html }) => html`${data.nbHits} resultaten`,
             },
-            cssClasses: {
-                root: "clear-filters-btn",
-                item: "clear-filters-btn-item",
-            }
         })),
 
         rl('#dim-product-search-filter-toepassing', 'toepassingen'),

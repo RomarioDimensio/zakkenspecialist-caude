@@ -77,7 +77,20 @@ add_shortcode('dim_product_search', function ($atts = []) use (&$dim_product_sea
             <?php if ($toonFilters) : ?>
             <div class="filter-pin-skeleton">
                 <aside class="dim-ais__filters" id="dim-ais-filter-container">
-                    <div id="dim-product-search-ais-clear"></div>
+                    <?php // Kopbalk van het filterscherm. Alleen zichtbaar onder 1024px,
+                          // waar de filters een volledig scherm zijn: wissen links,
+                          // sluiten rechts. Op desktop staat "Wis alle filters" in de
+                          // bovenbalk en is dit blok verborgen (zie de CSS). ?>
+                    <div class="dim-filter-kop">
+                        <button type="button" class="dim-filter-wissen">Wis alle filters</button>
+                        <button type="button" class="dim-filter-sluiten" aria-label="Filters sluiten"></button>
+                    </div>
+
+                    <?php // Bovenaan de filterlijst staat het aantal gevonden producten.
+                          // Hier stond eerder de reset-link "Alle zakken"; wissen doe je
+                          // nu via "Wis alle filters" (bovenbalk op desktop, kopbalk in
+                          // het filterscherm daaronder). ?>
+                    <div id="dim-product-search-ais-stats"></div>
 
                     <div class="dim-ais-filters-inner-container">
 

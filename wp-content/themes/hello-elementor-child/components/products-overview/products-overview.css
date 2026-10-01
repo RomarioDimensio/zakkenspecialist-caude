@@ -5,6 +5,14 @@
     --catalog-top: calc(var(--site-header-h) + var(--filter-h));
     --grid-visible-h: calc(100vh - var(--site-header-h) - var(--filter-h));
     --border: 1px solid #d9d9d9;
+
+    /* Gemeten door products-overview.js (meetHoogtes). De fallbacks gelden
+       alleen in het moment vóór die meting. */
+    --dim-balk-h: 110px;
+    /* waar grid en detail beginnen zodra het detail open staat */
+    --dim-vast-top: calc(var(--site-header-h, 120px) + var(--dim-balk-h));
+    /* en hoeveel hoogte ze dan nog hebben */
+    --dim-vast-hoogte: calc(100vh - var(--dim-vast-top));
 }
 
 /* De hele master-detail layout (grid + detailkolom) blijft binnen de
@@ -57,23 +65,50 @@
     flex: 0 0 50%;
     opacity: 1;
     position: sticky;
-    top: var(--site-header-h, 148px);
-    max-height: calc(100vh - var(--site-header-h, 148px));
+    /* Onder de header ÉN onder de bovenbalk: die balk (zoeken, sorteren,
+       wis alle filters) blijft in beeld zolang het detail open staat.
+       Beide hoogtes worden live gemeten in products-overview.js. */
+    top: var(--dim-vast-top);
+    max-height: var(--dim-vast-hoogte);
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
 }
 
-/* Te smal voor twee kolommen naast elkaar: dan neemt het paneel de volle
-   breedte over en verdwijnt het grid, zoals het hiervoor op elk scherm werkte. */
-@media (max-width: 1024px) {
-    .dim-products-layout.product-open > *:not(.dim-right-product-detail-panel) {
-        display: none;
+/* Onder 1024: het detail is geen kolom meer maar een volledig scherm dat
+   vanaf rechts over het overzicht schuift — zelfde beweging en timing als de
+   desktopvariant. Het grid blijft eronder staan (niet display:none), zodat de
+   bezoeker bij het sluiten terugkomt op dezelfde plek in de lijst.
+   Het filterscherm staat in algolia-product-search.css. */
+@media (max-width: 1023px) {
+    .dim-products-layout .dim-right-product-detail-panel {
+        flex: none;
+        position: fixed;
+        top: var(--site-header-h, 120px);
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        max-height: none;
+        z-index: 70;
+        opacity: 1;                 /* zichtbaarheid komt van de transform */
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        transform: translateX(100%);
+        transition: transform .45s cubic-bezier(.22, .61, .36, 1);
     }
 
     .dim-products-layout.product-open .dim-right-product-detail-panel {
-        flex: 0 0 100%;
-        position: static;
+        transform: translateX(0);
+        /* de desktopwaarden hier expliciet terugdraaien */
+        position: fixed;
+        top: var(--site-header-h, 120px);
+        max-height: none;
+    }
+
+    /* het grid links houdt zijn eigen hoogte; het detail ligt er nu overheen */
+    .dim-products-layout.product-open #dim-products-fsearch {
         max-height: none;
         overflow: visible;
     }
@@ -85,11 +120,13 @@
 
    Alleen vanaf 1025px: daaronder neemt het paneel de volle breedte, staat het
    niet sticky en moet de pagina juist wél gewoon scrollen. */
-@media (min-width: 1025px) {
-    html.dim-detail-vast,
-    html.dim-detail-vast body {
-        overflow: hidden;
-    }
+/* Geldt op elk formaat: zowel het detail als het filterscherm heeft zijn eigen
+   scroll, dus de pagina eronder hoort stil te liggen. */
+html.dim-detail-vast,
+html.dim-detail-vast body,
+html.dim-filters-open,
+html.dim-filters-open body {
+    overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -123,9 +160,15 @@
    meet --site-header-h live.) !important: de topbar is een container uit
    het detail-template en Elementor's post-CSS (elementor-1498) laadt ná
    deze file en zet daar top:0. */
+/* Terug-knop en breadcrumb blijven staan; alleen de inhoud eronder scrollt.
+   top:0 en niet de headerhoogte: het paneel is zélf de scroll-container, dus
+   "boven" is hier de bovenkant van het paneel — niet de bovenkant van de pagina.
+   Met de headerhoogte erin schoof de balk uit beeld zodra je begon te scrollen.
+   !important: de topbar is een container uit het detail-template en Elementors
+   post-CSS (elementor-1498) laadt ná dit bestand en zet daar top:0 ... of juist niet. */
 .dim-products-layout.product-open .dim-detail-topbar {
     position: sticky;
-    top: var(--site-header-h, 148px) !important;
+    top: 0 !important;
     z-index: 5;
     background: #fff;
 }
@@ -435,9 +478,6 @@
         touch-action: none; /* extra for mobile */
     }
 
-    body:has(.dim-products-layout.product-open) header {
-        visibility: hidden;
-    }
 }
 /* ---------------------------------------------------------------
    Specificatietabel in het detailpaneel — [dim_product_specs].
@@ -456,7 +496,6 @@
     border-collapse: collapse;
     /* auto i.p.v. fixed: de kolom groeit mee met het langste label */
     table-layout: auto;
-    border-top: var(--border, 1px solid #d9d9d9);
 }
 
 .dim-specs__tabel .dim-spec-rij > th,

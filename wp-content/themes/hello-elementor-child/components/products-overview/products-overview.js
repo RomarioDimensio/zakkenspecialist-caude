@@ -33,15 +33,59 @@
 
        Het slot zelf staat in de CSS en geldt alleen vanaf 1025px. Daaronder
        neemt het paneel de volle breedte en moet de pagina juist wél scrollen. */
+    /* De bovenbalk (Wis alle filters · Terug · Zoeken · Sorteren) is de Elementor-rij
+       waar #dim-remove-filters in zit. We hebben hem op twee plekken nodig — als
+       scroll-anker en als hoogte voor de CSS — dus zoeken we hem één keer op:
+       vanaf de knop omhoog tot de eerste container die vrijwel de volle breedte
+       heeft. Dat is stabieler dan een Elementor-id, want die verandert zodra je
+       de rij opnieuw opbouwt. */
+    function zoekBovenbalk() {
+        const knop = document.getElementById('dim-remove-filters');
+        let el = knop && knop.closest('.e-con, .elementor-element');
+        const vol = layout.getBoundingClientRect().width * 0.9;
+        while (el && el.getBoundingClientRect().width < vol && el.parentElement) {
+            el = el.parentElement;
+        }
+        return el;
+    }
+
+    /* Hoogtes van header en bovenbalk live meten en als CSS-variabele wegzetten.
+       De CSS rekent daarmee uit hoe hoog het paneel en het grid mogen worden.
+       Meten in plaats van een vast getal, want de header verandert van hoogte
+       met de WP-adminbalk en de bovenbalk met de schermbreedte. */
+    function meetHoogtes() {
+        const wortel = document.documentElement.style;
+
+        const header = document.querySelector('header.elementor-location-header > .e-con');
+        if (header) {
+            const h = Math.round(header.getBoundingClientRect().height);
+            if (h > 0 && h < 400) wortel.setProperty('--site-header-h', h + 'px');
+        }
+
+        const balk = zoekBovenbalk();
+        if (balk) {
+            const h = Math.round(balk.getBoundingClientRect().height);
+            if (h > 0 && h < 400) wortel.setProperty('--dim-balk-h', h + 'px');
+        }
+    }
+
+    meetHoogtes();
+    window.addEventListener('resize', meetHoogtes);
+
     function headerHoogte() {
         const waarde = parseInt(
             getComputedStyle(document.documentElement).getPropertyValue('--site-header-h'), 10
         );
-        return Number.isFinite(waarde) ? waarde : 148;
+        return Number.isFinite(waarde) ? waarde : 120;
     }
 
     function zetPaginaVast() {
-        const anker = document.getElementById('dim-products-fsearch');
+        meetHoogtes();
+
+        // Anker is de BOVENBALK, niet het grid: zoeken, sorteren en "Wis alle
+        // filters" horen in beeld te blijven terwijl je een product bekijkt.
+        // Ankerden we op het grid, dan schoof de balk achter de vaste header.
+        const anker = zoekBovenbalk() || document.getElementById('dim-products-fsearch');
         if (anker) {
             const doel = window.scrollY + anker.getBoundingClientRect().top - headerHoogte();
             // instant, niet smooth: we zetten de pagina meteen daarna op slot en
@@ -386,7 +430,17 @@
 
         // topbar (pijltje) blijft in beeld terwijl je door het detail scrolt
         const tb = panelContent.querySelector('.dim-product-close');
-        if (tb) (tb.closest('.e-con') || tb.parentElement || tb).classList.add('dim-detail-topbar');
+        /* De sticky kopbalk moet de RIJ zijn waar Terug én de breadcrumb in staan,
+           niet de Terug-knop zelf. Die knop is in Elementor ook een .e-con, dus
+           closest('.e-con') gaf hem terug — en een sticky element kan alleen
+           binnen zijn eigen ouder blijven plakken. Die ouder was 165px hoog, dus
+           na 115px scrollen schoof de balk alsnog uit beeld. Vanaf de ouder
+           zoeken lost dat op: die rij zit in het volledige documentblok en heeft
+           dus de hele paneelhoogte om in te blijven staan. */
+        if (tb) {
+            const rij = (tb.parentElement && tb.parentElement.closest('.e-con')) || tb.parentElement || tb;
+            rij.classList.add('dim-detail-topbar');
+        }
         // Echte headerhoogte meten: de <header>-wrapper is 0px hoog, de fixed
         // .e-con erin is de zichtbare balk. Zo pint de topbar exact onder de
         // header (incl. WP-adminbalk als je ingelogd bent).
