@@ -1200,6 +1200,42 @@
         overflow: visible;
     }
 }
+
+/* ================== ONDERGRENS: de sectie klapt niet in ==================
+   Omdat de filterkolom hierboven niet meetelt, bepaalt alleen het grid de
+   hoogte. Bij weinig of geen resultaten zou de sectie dan inklappen (0
+   resultaten = 24px): de filters worden afgekapt en de rest van de pagina
+   schiet omhoog. Daarom twee ondergrenzen:
+
+     1. de schermhoogte onder de header + zoekbalk — wat eronder staat blijft
+        dus onder de vouw, er verspringt niets in beeld;
+     2. de hoogte van de filterlijst zelf (--dim-filter-h, gemeten in de JS) —
+        een filter waar je net op klikte blijft op zijn plek staan.
+
+   Zijn er genoeg producten, dan is het grid hoger dan beide en verandert er
+   niets: de groene pagineringsbalk sluit dan gewoon aan op de laatste rij. */
+.dim-ais:not(.dim-ais--zonder-filters) .dim-ais__body {
+    min-height: calc(100vh - var(--dim-vast-top, 230px));
+}
+@media (min-width: 1024px) {
+    .dim-ais:not(.dim-ais--zonder-filters) .dim-ais__body {
+        min-height: max(calc(100vh - var(--dim-vast-top, 230px)), var(--dim-filter-h, 0px));
+    }
+    /* detail open: de filters zijn weg, dus alleen de schermhoogte telt */
+    .dim-products-layout.product-open .dim-ais:not(.dim-ais--zonder-filters) .dim-ais__body {
+        min-height: calc(100vh - var(--dim-vast-top, 230px));
+    }
+}
+
+/* "Geen producten gevonden": als mededeling midden in de lege ruimte */
+#dim-product-search-ais-hits .ais-Hits--empty {
+    padding: 80px 24px;
+    text-align: center;
+    font-size: 18px;
+    font-style: italic;
+    color: var(--gray-bg-900, #6d6e71);
+}
+
 /* het groene scroll-accent zit nu op de balk zelf (die scrolt voortaan) */
 .dim-ais__filters::-webkit-scrollbar { width: 4px; }
 .dim-ais__filters::-webkit-scrollbar-thumb {

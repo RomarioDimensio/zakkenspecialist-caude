@@ -223,6 +223,45 @@
         }
     });
 
+    /* --- Ankerlinks ín het detailpaneel --------------------------------------
+       "Offerte aanvragen" is in Elementor een gewone ankerlink naar het
+       formulier (#product-quation-form). Laat je de browser dat afhandelen, dan
+       wordt de hash #product=5837 overschreven — en dáár leest het paneel uit
+       welk product open staat. De deeplink is dan weg, en de popstate-listener
+       hieronder sluit het paneel omdat hij geen product meer vindt.
+
+       Daarom vangen we elke ankerlink binnen het paneel af waarvan het doel óók
+       in het paneel staat. De URL blijft zoals hij is en we scrollen het paneel
+       zelf: dat is de scroll-container, niet de pagina (die ligt op slot).
+       De vaste kopbalk met Terug en de breadcrumb ligt over de bovenkant heen,
+       dus die hoogte gaat eraf.
+
+       Capture-fase op document: Elementor handelt klikken op zijn eigen
+       elementen anders eerder af. Bewust generiek en niet alleen voor dit ene
+       id — een tweede ankerlink in het template werkt dan vanzelf goed. */
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest && e.target.closest('a[href*="#"]');
+        if (!link || !panelContent.contains(link)) return;
+        if (!link.hash || link.hash.length < 2) return;
+
+        const doel = document.getElementById(decodeURIComponent(link.hash.slice(1)));
+        if (!doel || !panelContent.contains(doel)) return;
+
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        const paneel = panelContent.closest('.dim-right-product-detail-panel');
+        if (!paneel) return;
+
+        const kop = paneel.querySelector('.dim-detail-topbar');
+        const kopHoogte = kop ? kop.getBoundingClientRect().height : 0;
+        const top = doel.getBoundingClientRect().top - paneel.getBoundingClientRect().top
+                  + paneel.scrollTop - kopHoogte - 16;
+
+        const rustig = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        paneel.scrollTo({ top: Math.max(0, top), behavior: rustig ? 'auto' : 'smooth' });
+    }, true);
+
     window.addEventListener('popstate', () => {
         const url = new URL(window.location.href);
         const productId = url.searchParams.get(queryParam);

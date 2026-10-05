@@ -457,7 +457,13 @@
             escapeHtml: false,
             templates: {
                 item: renderHit,
-                empty: ({ query }) => `Geen resultaten voor <strong>${query}</strong>`,
+                // De zoekterm komt uit de URL (?q=) en gaat als HTML de pagina in:
+                // eerst de tekens met een HTML-betekenis onschadelijk maken.
+                empty: ({ query }) => {
+                    if (!query) return 'Geen producten gevonden met deze filters';
+                    const veilig = String(query).replace(/[&<>"']/g, (t) => `&#${t.charCodeAt(0)};`);
+                    return `Geen producten gevonden voor <strong>${veilig}</strong>`;
+                },
             },
         }),
         wanneer('#dim-product-search-ais-pagination', () => pagination({
@@ -616,6 +622,31 @@
     // als no-op bestaan voor de dropdown-handlers hieronder.
     const updatePosition = () => {};
     if (!document.getElementById('dim-ais-filter-container')) return; // kale modus: geen filters
+
+    /* --- Ondergrens voor de sectiehoogte ------------------------------------
+       De filterbalk staat position:absolute in zijn cel en telt daardoor niet
+       mee voor de hoogte van de sectie. Bij weinig resultaten zou de sectie
+       korter worden dan de filterlijst. Daarom meten we hier hoe hoog de
+       filterlijst van zichzelf is en geven dat door als --dim-filter-h; de CSS
+       gebruikt die als min-height (zie "ONDERGRENS" in de CSS).
+       ResizeObserver meet opnieuw zodra de lijst van hoogte verandert — een
+       filterblok dat open- of dichtklapt, of waarden die erbij komen. */
+    (function koppelFilterHoogte() {
+        const balk = document.getElementById('dim-ais-filter-container');
+        const body = balk.closest('.dim-ais__body');
+        if (!body || !('ResizeObserver' in window)) return;
+
+        const meet = () => {
+            const stijl = getComputedStyle(balk);
+            let hoogte = parseFloat(stijl.paddingTop) + parseFloat(stijl.paddingBottom);
+            for (const kind of balk.children) hoogte += kind.offsetHeight;
+            body.style.setProperty('--dim-filter-h', Math.ceil(hoogte) + 'px');
+        };
+
+        const kijker = new ResizeObserver(meet);
+        for (const kind of balk.children) kijker.observe(kind);
+        meet();
+    })();
 
 
     // If your filters expand/collapse:
