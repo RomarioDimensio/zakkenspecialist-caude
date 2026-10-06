@@ -273,6 +273,16 @@ function wds_algolia_custom_fields( array $attributes, WP_Post $post ) {
         $attributes['medium_url'] = get_the_post_thumbnail_url($post->ID, 'medium');
     }
 
+    // 360-gradenvideo voor de hover op de kaart (renderHit toont alleen een
+    // <video> als dit veld bestaat). ACF-fileveld met return_format=array,
+    // maar we vangen ook een los ID of een kale URL af — dan blijft dit
+    // werken als iemand het veldtype ooit omzet.
+    $video = get_field('360_video_view', $post->ID);
+    $video_url = is_array($video) ? (string) ($video['url'] ?? '') : (is_numeric($video) ? (string) wp_get_attachment_url((int) $video) : (string) $video);
+    if ($video_url !== '') {
+        $attributes['video_url'] = $video_url;
+    }
+
     return $attributes;
 }
 

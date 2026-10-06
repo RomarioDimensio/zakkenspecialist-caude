@@ -80,10 +80,22 @@
         },
     };
 
+    /* Eigen router = de standaard history-router, met één verschil: de #hash
+       blijft staan. Het detailpaneel leeft in de hash (#product=5837); de
+       standaard router schrijft bij elke filterwijziging een nieuwe URL
+       zónder hash, waardoor de detail-deeplink verdween zodra je met een
+       detail open een filter aanraakte (of de zakkencalculator er een zette). */
+    const router = instantsearch.routers.history({
+        createURL({ qsModule, routeState, location }) {
+            const qs = qsModule.stringify(routeState, { addQueryPrefix: true });
+            return location.origin + location.pathname + qs + (window.location.hash || '');
+        },
+    });
+
     const search = instantsearch({
         indexName: indexNameAlgoliaSearch,
         searchClient,
-        routing: { stateMapping },
+        routing: { router, stateMapping },
     });
 
     // De header-zoek (components/header-search) verfijnt hiermee live zodra de
@@ -131,10 +143,19 @@
             ? html`<span class="dim-spec">${formaten[0]}</span>`
             : (formaten.length ? html`<span class="dim-spec">${formaten.length} maten</span>` : '');
 
+        // 360-video: alleen renderen als het product er een heeft (video_url uit
+        // algolia.php). Afspelen bij hover zit in products-overview.js; zichtbaar
+        // worden regelt de CSS (opacity op .dim-ais-hit:hover). preload=none:
+        // de browser haalt het bestand pas op bij de eerste hover.
+        const video = hit.video_url || '';
+
         return html`
             <article class="dim-ais-hit dim-grid-item" data-dim-product="${pid}" data-product-id="${pid}" data-variant-group="${vgroup}">
                 <div class="product-card">
-                    <div class="dim-ais-thumb"><img src="${img}" class="product-card__img" alt="" loading="lazy"/></div>
+                    <div class="dim-ais-thumb">
+                        <img src="${img}" class="product-card__img" alt="" loading="lazy"/>
+                        ${video ? html`<video class="dim-kaart-video" src="${video}" muted loop playsinline preload="none"></video>` : ''}
+                    </div>
                     <div class="dim-ais-info">
                         <div class="dim-ais-naam">
                             <h3>${title}</h3>

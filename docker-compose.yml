@@ -9,7 +9,7 @@ services:
       - ./php.ini:/usr/local/etc/php/conf.d/uploads.ini
     environment:
       WORDPRESS_DB_NAME: wordpress2
-      WORDPRESS_TABLE_PREFIX: wp2_
+      WORDPRESS_TABLE_PREFIX: wp_
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: root
       WORDPRESS_DB_PASSWORD: password

@@ -35,6 +35,30 @@ foreach (glob(__DIR__ . '/components/admin/*/*.php') as $php) {
     require_once $php;
 }
 
+// --------------------------       Add in the wp admin pages the column last edited        --------------------------
+add_filter('manage_pages_columns', function ($cols) {
+    $cols['last_modified'] = 'Laatst bewerkt';
+    return $cols;
+});
+
+// Kolom vullen
+add_action('manage_pages_custom_column', function ($col, $post_id) {
+    if ($col === 'last_modified') {
+        $p = get_post($post_id);
+        echo esc_html(get_the_modified_date('d-m-Y H:i', $p));
+        $user = get_userdata(get_post_meta($post_id, '_edit_last', true));
+        if ($user) echo '<br><small>door ' . esc_html($user->display_name) . '</small>';
+    }
+}, 10, 2);
+
+// Sorteerbaar maken
+add_filter('manage_edit-page_sortable_columns', function ($cols) {
+    $cols['last_modified'] = 'modified';
+    return $cols;
+});
+
+// --------------------------      END of Column adding column on wp admin pages        --------------------------
+
 // Add upload svg
 function add_file_types_to_uploads($file_types){
     $new_filetypes = array();
@@ -45,20 +69,6 @@ function add_file_types_to_uploads($file_types){
     return $file_types;
 }
 add_filter('upload_mimes', 'add_file_types_to_uploads');
-
-function car_scroll_sequence() {
-    ob_start();
-    get_template_part('image-sequence/scroll-sequence');
-    return ob_get_clean();
-}
-add_shortcode('car_scroll_sequence', 'car_scroll_sequence');
-
-function grow_slide_right() {
-    ob_start();
-    get_template_part('grow-slide-to-right/grow-slide-to-right');
-    return ob_get_clean();
-}
-add_shortcode('grow_slide_right', 'grow_slide_right');
 
 
 add_filter( 'bp3d_model_attribute', function ($defaults){

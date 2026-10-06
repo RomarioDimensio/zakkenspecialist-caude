@@ -149,6 +149,7 @@ add_action('admin_init', function () {
     }, 10, 2);
 
     $force = !empty($_GET['force']);
+    $video_opnieuw = !empty($_GET['video_opnieuw']);   // herkoppel ook producten die al een video hebben
     $vind = function (string $titel): int {
         $r = get_posts([ 'post_type' => 'attachment', 'post_status' => 'inherit',
             'title' => $titel, 'posts_per_page' => 1, 'fields' => 'ids' ]);
@@ -157,7 +158,7 @@ add_action('admin_init', function () {
 
     $q = new WP_Query([ 'post_type' => 'product', 'post_status' => 'publish',
         'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true ]);
-    $stat = [ 'beeldbank' => 0, 'generiek' => 0, 'video' => 0, 'al_gekoppeld' => 0, 'geen_match' => 0 ];
+    $stat = [ 'beeldbank' => 0, 'generiek' => 0, 'video' => 0, 'video_weg' => 0, 'al_gekoppeld' => 0, 'geen_match' => 0 ];
 
     foreach ($q->posts as $pid) {
         $code = trim((string) get_field('artikelcode', $pid));
@@ -208,18 +209,39 @@ add_action('admin_init', function () {
             $stat['al_gekoppeld']++;
         }
 
-        // bonus: 360-video per kleur (alleen vullen als het veld leeg is)
-        if ($kleur !== '' && !get_field('360_video_view', $pid)) {
-            foreach ($volgorde as $ab) {
-                $vid = $vind('DZS_zak-' . $kleur . '_360_' . $ab . '_2sec');
-                if ($vid) { update_field('360_video_view', $vid, $pid); $stat['video']++; break; }
+        /* Bonus: 360-video — de video volgt de FOTO, niet de afmetingen.
+           De bezoeker ziet eerst de foto; het filmpje hoort daar naadloos op
+           aan te sluiten. De A/B-letter komt daarom uit de bestandsnaam van
+           de gekoppelde foto (render_zak_grijs_A.webp -> A). Foto's zonder
+           letter (beeldbank op artikelcode, kratzakken) vallen terug op het
+           rekenmodel. En STRIKT: bestaat de video met díe letter niet, dan
+           géén video — een filmpje met het verkeerde model (B-zak draait
+           terwijl de foto een A-zak toont) is erger dan geen filmpje.
+           ?dim_koppel_fotos=1&video_opnieuw=1 herkoppelt ook producten die
+           al een video hadden (de opschoonactie na deze wijziging). */
+        if ($kleur !== '' && ($video_opnieuw || !get_field('360_video_view', $pid))) {
+            $letter = $volgorde[0];
+            $foto_bestand = basename((string) get_post_meta(get_post_thumbnail_id($pid), '_wp_attached_file', true));
+            if (preg_match('~_([ab])\.[a-z0-9]+$~i', $foto_bestand, $m)) {
+                $letter = strtoupper($m[1]);
+            }
+            $vid = $vind('DZS_zak-' . $kleur . '_360_' . $letter . '_2sec');
+            // rauwe meta, niet get_field(): het file-veld geeft een array terug
+            // en dan telt elke run als "gewijzigd" terwijl het ID gelijk blijft
+            $huidig = (int) get_post_meta($pid, '360_video_view', true);
+            if ($vid && $vid !== $huidig) {
+                update_field('360_video_view', $vid, $pid);
+                $stat['video']++;
+            } elseif (!$vid && $huidig) {
+                update_field('360_video_view', '', $pid);   // liever geen filmpje dan het verkeerde model
+                $stat['video_weg']++;
             }
         }
     }
 
     wp_die(sprintf(
-        'Foto-koppeling klaar. Beeldbank (artikelcode): %d | Generiek (kleur A/B): %d | 360-video gezet: %d | al gekoppeld (overgeslagen): %d | geen match: %d.<br>Draai nu ?dim_reindex_producten=1 zodat de fotos in de zoekindex komen.',
-        $stat['beeldbank'], $stat['generiek'], $stat['video'], $stat['al_gekoppeld'], $stat['geen_match']
+        'Foto-koppeling klaar. Beeldbank (artikelcode): %d | Generiek (kleur A/B): %d | 360-video gezet/gewijzigd: %d | video weggehaald (letter past niet bij foto): %d | al gekoppeld (overgeslagen): %d | geen match: %d.<br>Draai nu ?dim_reindex_producten=1 zodat de wijzigingen in de zoekindex komen. Tip: &video_opnieuw=1 herkoppelt ook producten die al een video hebben.',
+        $stat['beeldbank'], $stat['generiek'], $stat['video'], $stat['video_weg'], $stat['al_gekoppeld'], $stat['geen_match']
     ));
 });
 

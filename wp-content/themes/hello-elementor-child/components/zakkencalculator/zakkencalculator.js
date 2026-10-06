@@ -162,13 +162,15 @@
        Staat de zoeker op dezelfde pagina (dat is zo op /onze-producten/), dan
        zetten we de filters direct — geen herlaadbeurt. Anders vallen we terug
        op de deeplink-taal uit algolia-product-search.js: ?omtrek=211-264. */
-    function toonZakken(res) {
+    const deeplinkParams = (res) =>
+        `omtrek=${res.omtrekRange[0]}-${res.omtrekRange[1]}` +
+        `&lengte=${res.lengteRange[0]}-${res.lengteRange[1]}`;
+
+    function toonZakken(res, scrollen = true) {
         const ais = window.DIM_AIS;
-        const params = `omtrek=${res.omtrekRange[0]}-${res.omtrekRange[1]}` +
-                       `&lengte=${res.lengteRange[0]}-${res.lengteRange[1]}`;
 
         if (!ais || !ais.indexName) {
-            window.location.href = `/onze-producten/?${params}`;
+            window.location.href = `/onze-producten/?${deeplinkParams(res)}`;
             return;
         }
 
@@ -184,39 +186,157 @@
             }),
         });
 
-        const doel = document.getElementById('dim-product-search-ais-hits');
-        if (doel) doel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // niet scrollen als het detailpaneel zo opent: dat zet de pagina
+        // zelf al vast op de juiste plek (zetPaginaVast)
+        if (scrollen) {
+            const doel = document.getElementById('dim-product-search-ais-hits');
+            if (doel) doel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     }
 
-    /* --- Uitkomst tonen ---------------------------------------------------- */
+    /* --- Popup met de uitkomst + passende zakken ---------------------------
+       De uitkomst verschijnt in een eigen popup, met daarin de producten die
+       binnen het omtrek/lengte-venster vallen (zelfde query als de filters
+       die een klik daarna op het overzicht zet). Klik op een product: popup
+       dicht, filters aan, detail van dat product open. */
+    function algoliaZoek(params) {
+        const AG = window.DIM_PRODUCT_SEARCH || null;
+        if (!AG || !AG.appId || !AG.searchKey) return Promise.resolve(null);
+        return fetch(`https://${AG.appId}-dsn.algolia.net/1/indexes/${AG.indexNameAlgoliaSearch}/query`, {
+            method: 'POST',
+            headers: { 'X-Algolia-Application-Id': AG.appId, 'X-Algolia-API-Key': AG.searchKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
+        }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    }
+
+    const ontsmet = (s) => String(s ?? '').replace(/[&<>"']/g, (t) => `&#${t.charCodeAt(0)};`);
+
+    let popupEl = null;
+    function sluitPopup() {
+        if (popupEl) popupEl.hidden = true;
+        document.documentElement.classList.remove('dim-calc-popup-open');
+    }
+
+    function popupSkelet() {
+        if (popupEl) return popupEl;
+        popupEl = document.createElement('div');
+        popupEl.className = 'dim-calc-popup';
+        popupEl.hidden = true;
+        popupEl.innerHTML =
+            '<div class="dim-calc-popup__achtergrond"></div>' +
+            '<div class="dim-calc-popup__venster" role="dialog" aria-modal="true" aria-labelledby="dim-calc-popup-titel">' +
+            '  <button type="button" class="dim-calc-popup__sluiten" aria-label="Sluiten">&times;</button>' +
+            '  <h3 id="dim-calc-popup-titel">Uw zak op maat</h3>' +
+            '  <div class="dim-calc-popup__advies"></div>' +
+            '  <div class="dim-calc-popup__resultaten"></div>' +
+            '  <button type="button" class="dim-calc-popup__alle"></button>' +
+            '</div>';
+        document.body.appendChild(popupEl);
+
+        popupEl.querySelector('.dim-calc-popup__achtergrond').addEventListener('click', sluitPopup);
+        popupEl.querySelector('.dim-calc-popup__sluiten').addEventListener('click', sluitPopup);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !popupEl.hidden) sluitPopup();
+        });
+        return popupEl;
+    }
+
+    async function toonPopup(res) {
+        const pop = popupSkelet();
+
+        pop.querySelector('.dim-calc-popup__advies').innerHTML =
+            '<p class="dim-calc-advies__maat">U heeft een zak nodig van ' +
+            '<strong>' + cm(res.breedteNodig) + ' x ' + cm(res.lengteNodig) + ' cm</strong>.</p>' +
+            '<p class="dim-calc-advies__toelichting">Dat is een omtrek van ' + cm(res.omtrekNodig) +
+            ' cm. Heeft de zak een zijvouw, dan mag de platte breedte kleiner zijn — ' +
+            'de resultaten hieronder houden daar al rekening mee.</p>';
+
+        const uit = pop.querySelector('.dim-calc-popup__resultaten');
+        const alleKnop = pop.querySelector('.dim-calc-popup__alle');
+        uit.innerHTML = '<p class="dim-calc-popup__laden">Passende zakken zoeken&hellip;</p>';
+        alleKnop.hidden = true;
+
+        pop.hidden = false;
+        document.documentElement.classList.add('dim-calc-popup-open');
+        pop.querySelector('.dim-calc-popup__sluiten').focus();
+
+        const antwoord = await algoliaZoek({
+            query: '',
+            hitsPerPage: 6,
+            distinct: true,
+            numericFilters: [
+                `omtrek_cm>=${res.omtrekRange[0]}`, `omtrek_cm<=${res.omtrekRange[1]}`,
+                `lengte_cm>=${res.lengteRange[0]}`, `lengte_cm<=${res.lengteRange[1]}`,
+            ],
+            attributesToRetrieve: ['post_id', 'post_title', 'variant_base_title', 'variant_count', 'artikelcode', 'medium_url'],
+        });
+
+        // Geen zoeker op deze pagina of Algolia onbereikbaar: popup blijft
+        // bruikbaar, de knop brengt de bezoeker naar het gefilterde overzicht.
+        if (!antwoord) {
+            uit.innerHTML = '';
+            alleKnop.hidden = false;
+            alleKnop.textContent = 'Bekijk passende zakken';
+            alleKnop.onclick = () => { sluitPopup(); toonZakken(res); };
+            return;
+        }
+
+        const hits = antwoord.hits || [];
+        if (!hits.length) {
+            uit.innerHTML = '<p class="dim-calc-popup__leeg">Geen standaardzak gevonden voor deze maten. ' +
+                'Neem gerust contact op &mdash; maatwerk is onze specialiteit.</p>';
+            alleKnop.hidden = false;
+            alleKnop.textContent = 'Naar het overzicht';
+            alleKnop.onclick = () => { sluitPopup(); toonZakken(res); };
+            return;
+        }
+
+        uit.innerHTML = hits.map((h) => {
+            const titel = ((h.variant_count || 1) > 1 && h.variant_base_title) ? h.variant_base_title : (h.post_title || '');
+            return '<button type="button" class="dim-calc-popup__item" data-post-id="' + ontsmet(h.post_id) + '">' +
+                (h.medium_url ? '<img src="' + ontsmet(h.medium_url) + '" alt="" loading="lazy">' : '<span class="dim-calc-popup__geenfoto"></span>') +
+                '<span class="dim-calc-popup__naam">' + ontsmet(titel) +
+                (h.artikelcode ? '<small>' + ontsmet(h.artikelcode) + '</small>' : '') + '</span>' +
+                '</button>';
+        }).join('');
+
+        uit.onclick = (e) => {
+            const item = e.target.closest('.dim-calc-popup__item');
+            if (!item) return;
+            const id = item.dataset.postId;
+            sluitPopup();
+            // filters zetten zónder scroll: het openen van het detail zet de
+            // pagina zelf vast met de bovenbalk netjes in beeld
+            toonZakken(res, false);
+            if (window.dimProductPanel && typeof window.dimProductPanel.open === 'function') {
+                window.dimProductPanel.open(id);
+            } else {
+                window.location.href = `/onze-producten/?${deeplinkParams(res)}#product=${id}`;
+            }
+        };
+
+        const totaal = antwoord.nbHits || hits.length;
+        alleKnop.hidden = false;
+        alleKnop.textContent = totaal === 1 ? 'Toon dit resultaat in het overzicht'
+            : `Toon alle ${totaal} passende zakken`;
+        alleKnop.onclick = () => { sluitPopup(); toonZakken(res); };
+    }
+
+    /* --- Uitkomst tonen ----------------------------------------------------
+       Succes gaat naar de popup; alleen een invoerfout blijft in het
+       formulier zelf staan (daar kijkt de bezoeker op dat moment). */
     function toon(res) {
         const vak = form.querySelector('.e-form-success-message-base');
-        if (!vak) return;
-        vak.style.display = 'block';
-        vak.innerHTML = '';
 
         if (res.fout) {
+            if (!vak) return;
+            vak.style.display = 'block';
             vak.textContent = res.fout;
             return;
         }
 
-        const blok = document.createElement('div');
-        blok.className = 'dim-calc-advies';
-        blok.innerHTML =
-            '<p class="dim-calc-advies__maat">U heeft een zak nodig van ' +
-            '<strong>' + cm(res.breedteNodig) + ' x ' + cm(res.lengteNodig) + ' cm</strong>.</p>' +
-            '<p class="dim-calc-advies__toelichting">Dat is een omtrek van ' + cm(res.omtrekNodig) +
-            ' cm. Heeft de zak een zijvouw, dan mag de platte breedte kleiner zijn ' +
-            'de zoeker hieronder rekent dat voor u om.</p>';
-
-        // const knop = document.createElement('button');
-        // knop.type = 'button';
-        // knop.className = 'dim-calc-advies__knop';
-        // knop.textContent = 'Toon passende zakken';
-        // knop.addEventListener('click', () => toonZakken(res));
-        // blok.appendChild(knop);
-
-        vak.appendChild(blok);
+        if (vak) { vak.style.display = 'none'; vak.textContent = ''; }
+        toonPopup(res);
     }
 
     /* --- Submit onderscheppen ----------------------------------------------

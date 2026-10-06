@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dimMenu = document.getElementById('dim-nav-main-menu');
 
     const searchElementorContainer = document.getElementById('dim-mega-menu-search-container');
-    const searchInput = searchElementorContainer.querySelector('#dim-mega-menu-search-input-field');
+    const searchInput = searchElementorContainer?.querySelector('#dim-mega-menu-search-input-field');
 
     const btnOpenSearch = document.getElementById('dim-toggle-search-in-menu');     // open as search
     const btnClose = document.getElementById('dim-close-menu-button');

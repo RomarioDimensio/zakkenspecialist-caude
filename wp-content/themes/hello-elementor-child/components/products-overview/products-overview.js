@@ -130,8 +130,9 @@
         const url = new URL(ajaxUrl, window.location.origin);
         url.searchParams.set('action', 'dim_get_product_detail');
         url.searchParams.set('product_id', productId);
-        const product_slug = location.pathname.split('/')[1];
-        url.searchParams.set('template_id', product_slug === 'just-gloves' ? 3626 : 1498);
+        // startsWith: vangt ook een gewijzigde slug als "just-gloves-2" op
+        const product_slug = location.pathname.split('/')[1] || '';
+        url.searchParams.set('template_id', product_slug.startsWith('just-gloves') ? 3626 : 1498);
         const response = await fetch(url.toString(), {
             method: 'GET',
             credentials: 'same-origin',
@@ -191,6 +192,14 @@
             console.error(error);
         }
     }
+
+    /* Van buitenaf een product openen (zakkencalculator-popup): zelfde route
+       als een kaart-klik, inclusief URL-hash en vastzetten van de pagina.
+       dimProductPanel is het settings-object uit PHP (wp_localize_script);
+       we hangen de functie daaraan zodat er maar één naamruimte is. */
+    window.dimProductPanel = Object.assign(window.dimProductPanel || {}, {
+        open: (id) => loadProduct(String(id), true),
+    });
 
     function closeProductPanel(pushUrl = true) {
         currentProductId = null;
@@ -280,41 +289,63 @@
         loadProduct(initialProductId, false);
     }
 
-    const CARD_SELECTOR = '.product-media';
+    /* --- 360-video op de kaart: draait zolang de muis erop staat -----------
+       Een kaart krijgt alleen een <video> als het product er een heeft
+       (hit.video_url — zie renderHit in algolia-product-search.js en het
+       veld 360_video_view in algolia.php). Zichtbaar maken gebeurt puur met
+       CSS (:hover op de kaart); hier alleen starten en stoppen.
 
-    document.addEventListener('pointerenter', (e) => {
-        // Auto play video on hover
+       pointerover/pointerout in plaats van enter/leave: die bubbelen wél,
+       dus één listener op document is genoeg voor kaarten die InstantSearch
+       telkens opnieuw rendert. relatedTarget-check voorkomt dat bewegen
+       BINNEN de kaart de video telkens opnieuw laat beginnen. */
+    const CARD_SELECTOR = '.dim-ais-hit';
+    const rustigAan = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    document.addEventListener('pointerover', (e) => {
+        if (rustigAan.matches) return;
         const card = e.target?.closest?.(CARD_SELECTOR);
-        if (!card) return;
+        if (!card || (e.relatedTarget && card.contains(e.relatedTarget))) return;
 
-        const video = card.querySelector('video');
+        const video = card.querySelector('video.dim-kaart-video');
         if (!video) return;
 
-        // Make sure it can autoplay on hover
-        video.muted = true;
+        video.muted = true;        // zonder muted weigert de browser autoplay
         video.playsInline = true;
-
-        // Try play (may fail on some browsers if not allowed)
         video.play().catch(() => {});
-    }, true);
+    });
 
-    document.addEventListener('pointerleave', (e) => {
+    document.addEventListener('pointerout', (e) => {
         const card = e.target?.closest?.(CARD_SELECTOR);
-        if (!card) return;
+        if (!card || (e.relatedTarget && card.contains(e.relatedTarget))) return;
 
-        const video = card.querySelector('video');
+        const video = card.querySelector('video.dim-kaart-video');
         if (!video) return;
 
         video.pause();
-        // Optional: reset so it always starts from beginning
-        video.currentTime = 0;
-    }, true);
+        video.currentTime = 0;     // volgende hover begint gewoon vooraan
+    });
 
     function pushUrlChange(pushUrl = true, productId) {
         if (pushUrl) {
             const newUrl = new URL(window.location.href);
             newUrl.hash = `${queryParam}=${productId}`;
             history.pushState({ productId }, '', newUrl);
+
+            /* Vangnet tegen de InstantSearch-router: die berekent zijn nieuwe
+               URL op het moment van een filterwijziging en schrijft hem pas
+               ~400ms later. Zet de zakkencalculator filters en opent hij
+               direct daarna een detail, dan overschrijft die uitgestelde
+               momentopname onze verse #product-hash. We kijken daarom even
+               later nog één keer: is de hash weg terwijl dit product nog
+               open staat, dan zetten we hem terug (replaceState — geen
+               extra stap in de browsergeschiedenis). */
+            setTimeout(() => {
+                if (String(currentProductId) === String(productId) && !window.location.hash) {
+                    history.replaceState(history.state, '',
+                        window.location.pathname + window.location.search + `#${queryParam}=${productId}`);
+                }
+            }, 800);
         }
     }
 
@@ -353,24 +384,40 @@
      * widgets zijn 1-op-1 te matchen op data-id; we vervangen alleen wat
      * afwijkt. Chips blijven staan — alleen de active-state wisselt.
      * ------------------------------------------------------------------- */
-    const DIM_CHIP_SELECTOR = '.dim-detail-swatches, .dim-detail-diktes, .dim-variant-selector';
-
     function morphPanel(nieuwHtml, baseTitle) {
         const tpl = document.createElement('div');
         tpl.innerHTML = nieuwHtml;
         const vers = new Map();
-        tpl.querySelectorAll('.elementor-widget[data-id]').forEach(w => vers.set(w.dataset.id, w));
+        // kaal [data-id]: atomic bladeren (e-image, e-paragraph, e-heading)
+        // dragen GEEN class "elementor-element" — alleen containers doen dat
+        tpl.querySelectorAll('[data-id]').forEach(w => vers.set(w.dataset.id, w));
         let vergeleken = 0;
-        panelContent.querySelectorAll('.elementor-widget[data-id]').forEach(w => {
-            if (w.querySelector(DIM_CHIP_SELECTOR)) return;      // door ons beheerde chips
-            const h = w.querySelector('.elementor-heading-title');
-            const tekst = h ? h.textContent.trim() : '';
+        /* Alleen BLAD-elementen vergelijken (zonder eigen data-id-kinderen).
+           Het 2026-template bestaat vrijwel volledig uit atomic elementen
+           (e-flexbox / e-heading / ...), niet meer uit .elementor-widget.
+           Een bovenliggende container vervangen zou ook ons eigen
+           #dim-varianten-blok weggooien; de bladeren zijn precies de losse
+           teksten, foto's en de specs-shortcode — dat is wat per artikel
+           verschilt. */
+        panelContent.querySelectorAll('[data-id]').forEach(w => {
+            if (w.querySelector('[data-id]')) return;            // container, geen blad
+            if (w.closest('#dim-varianten')) return;             // fallback-blok (zonder specs-tabel) is van ons
+            // N.B. de specs-tabel wordt hier bewust WEL ververst, inclusief onze
+            // chip-rijen: switchVariant bouwt de kiezers daarna opnieuw op
+            // (plaatsKiezers), met de waarden van het nieuwe artikel.
+            const tekst = (w.textContent || '').trim();
             if (baseTitle && tekst === baseTitle) return;        // basistitel niet terugzetten naar volledige naam
-            if (tekst === 'Breedte:') return;                    // hernoemd "Formaat:"-label behouden
             const nieuw = vers.get(w.dataset.id);
             if (!nieuw) return;
             vergeleken++;
             if (nieuw.innerHTML !== w.innerHTML) w.innerHTML = nieuw.innerHTML;
+            /* Ook de ATTRIBUTEN gelijktrekken. De productfoto is in het
+               2026-template een atomic <img> die zelf het data-id draagt:
+               geen innerHTML, het verschil zit in src/srcset. Zelfde geldt
+               voor een eventuele <video src> of een background-image in een
+               style-attribuut. */
+            [...w.attributes].forEach(a => { if (!nieuw.hasAttribute(a.name)) w.removeAttribute(a.name); });
+            [...nieuw.attributes].forEach(a => { if (w.getAttribute(a.name) !== a.value) w.setAttribute(a.name, a.value); });
         });
         return vergeleken;
     }
@@ -396,13 +443,12 @@
                 vorm: norm(target.vorm),
                 verpakking: norm(target.verpakt_per),
             });
-            const doelen = {
-                color: ctx.cur.color, dikte: ctx.cur.dikte, formaat: ctx.cur.formaat,
-                vorm: ctx.cur.vorm, verpakking: ctx.cur.verpakking,
-            };
-            panelContent.querySelectorAll('[data-kind][data-value]').forEach(b => {
-                b.classList.toggle('is-active', decodeURIComponent(b.dataset.value) === doelen[b.dataset.kind]);
-            });
+            // kiezers opnieuw opbouwen: de morph heeft de specs-tabel net
+            // ververst met de kale waarden van het nieuwe artikel, dus onze
+            // chip-rijen zijn daarbij weggeveegd — zo blijven ze altijd in
+            // lijn met wat er in de tabel staat
+            plaatsKiezers();
+            plaatsDetailVideo(target.video_url || '');
 
             // verborgen artikel-meta (voor de offerte-flow) mee laten wisselen
             const meta = panelContent.querySelector('.dim-artikel-meta');
@@ -463,9 +509,167 @@
             ` title="${kleur}" data-kind="color" data-value="${encodeURIComponent(kleur)}"${bg}></button>`;
     }
 
+    // formaat splitsen in breedte + lengte ("58/2x22 x 63cm" -> ["58/2x22", "63cm"])
+    const splitsFormaat = (f) => {
+        const delen = String(f || '').split(' x ');
+        if (delen.length < 2) return null;
+        const lengte = delen[delen.length - 1].trim();
+        if (!/^\d+(?:[.,]\d+)?\s*(cm|mm)$/.test(lengte)) return null;
+        return { breedte: delen.slice(0, -1).join(' x ').trim(), lengte };
+    };
+
+    /* --- De kiezers: rijen ín de specs-tabel --------------------------------
+       De variantkeuzes (kleur, dikte, lengte, vorm, verpakt per) staan in
+       dezelfde tabelrijen als de andere specs — de kale tekstwaarde in de
+       <td> wordt vervangen door swatches of chips. plaatsKiezers() wordt op
+       twee momenten aangeroepen: bij het openen van een detail én na elke
+       variantwissel (de morph ververst de tabel en veegt de chips mee weg).
+       kiezerCtx onthoudt daarvoor alles wat nodig is. */
+    let kiezerCtx = null;
+
+    function plaatsKiezers() {
+        if (!kiezerCtx) return;
+        const { colors, thicknesses, formaten, vormen, verpakkingen, cur, klik } = kiezerCtx;
+
+        const chipsMaken = (waarden, huidig, kind, cls) => {
+            const el = document.createElement('div');
+            el.className = cls;
+            el.innerHTML = waarden.map(w =>
+                `<button type="button" class="dim-variant-chip${w === huidig ? ' is-active' : ''}"` +
+                ` data-kind="${kind}" data-value="${encodeURIComponent(w)}">${w}</button>`).join('');
+            el.addEventListener('click', klik);
+            return el;
+        };
+        const swatchesMaken = () => {
+            const sw = document.createElement('div');
+            sw.className = 'dim-detail-swatches';
+            sw.innerHTML = colors.map(c => swatchKnop(c, c === cur.color)).join('');
+            sw.addEventListener('click', klik);
+            return sw;
+        };
+
+        const tabel = panelContent.querySelector('.dim-specs__tabel');
+        if (tabel) {
+            // eerder door ons toegevoegde rijen eerst weg (idempotent herbouwen)
+            tabel.querySelectorAll('.dim-spec-rij--dim').forEach(r => r.remove());
+
+            const rij = (veld) => tabel.querySelector(`tr[data-veld="${veld}"]`);
+            // ontbreekt een rij (veld was leeg bij dit artikel, maar broertjes
+            // bieden wél een keuze), dan maken we hem in dezelfde tabelvorm bij
+            const maakRij = (veld, label, naRij) => {
+                const tr = document.createElement('tr');
+                tr.className = 'dim-spec-rij dim-spec-rij--dim';
+                tr.dataset.veld = veld;
+                const th = document.createElement('th');
+                th.scope = 'row';
+                th.textContent = label;
+                tr.append(th, document.createElement('td'));
+                if (naRij) naRij.insertAdjacentElement('afterend', tr);
+                else (tabel.tBodies[0] || tabel).appendChild(tr);
+                return tr;
+            };
+            const vulTd = (tr, el) => {
+                tr.classList.add('dim-spec-rij--kiezer');
+                tr.querySelector('td').replaceChildren(el);
+            };
+
+            if (colors.length) {
+                const r = rij('kleuren') || maakRij('kleuren', 'Kleuren', rij('omschrijving') || rij('artikelcode'));
+                vulTd(r, swatchesMaken());
+            }
+            if (thicknesses.length > 1) {
+                const r = rij('dikte') || maakRij('dikte', 'Dikte', rij('kleuren'));
+                vulTd(r, chipsMaken(thicknesses, cur.dikte, 'dikte', 'dim-detail-diktes'));
+            }
+            const gesplitst = splitsFormaat(cur.formaat);
+            if (gesplitst) {
+                // breedte is per variantgroep vast en staat al als tekst in de
+                // tabel; alleen de lengte is een echte keuze
+                const lengtes = formaten.map(f => ({ f, s: splitsFormaat(f) })).filter(x => x.s);
+                if (lengtes.length > 1) {
+                    const el = document.createElement('div');
+                    el.className = 'dim-detail-diktes dim-detail-lengtes';
+                    el.innerHTML = lengtes.map(x =>
+                        `<button type="button" class="dim-variant-chip${x.f === cur.formaat ? ' is-active' : ''}"` +
+                        ` data-kind="formaat" data-value="${encodeURIComponent(x.f)}">${x.s.lengte}</button>`).join('');
+                    el.addEventListener('click', klik);
+                    const r = rij('lengte_cm') || maakRij('lengte_cm', 'Lengte (cm)', rij('breedte_cm') || rij('formaat'));
+                    vulTd(r, el);
+                }
+            } else if (formaten.length > 1) {
+                const r = rij('formaat') || maakRij('formaat', 'Formaat', rij('dikte') || rij('kleuren'));
+                vulTd(r, chipsMaken(formaten, cur.formaat, 'formaat', 'dim-detail-diktes dim-detail-formaten'));
+            }
+            if (vormen.length > 1) {
+                const r = rij('vorm') || maakRij('vorm', 'Vorm (rol/los)', rij('lengte_cm') || rij('formaat') || rij('dikte'));
+                vulTd(r, chipsMaken(vormen, cur.vorm, 'vorm', 'dim-detail-diktes dim-detail-vormen'));
+            }
+            if (verpakkingen.length > 1) {
+                const r = rij('verpakt_per') || maakRij('verpakt_per', 'Verpakt per', rij('vorm') || rij('lengte_cm'));
+                vulTd(r, chipsMaken(verpakkingen, cur.verpakking, 'verpakking', 'dim-detail-diktes dim-detail-verpakkingen'));
+            }
+            return;
+        }
+
+        /* Geen specs-tabel in dit template (bv. handschoenen): gestapeld blok,
+           vlak voor het offerteformulier. */
+        let houder = panelContent.querySelector('#dim-varianten');
+        if (!houder) {
+            houder = document.createElement('div');
+            houder.id = 'dim-varianten';
+            houder.className = 'dim-varianten-schakelaar';
+            const anker = panelContent.querySelector('#product-quation-form');
+            if (anker) anker.insertAdjacentElement('beforebegin', houder);
+            else panelContent.appendChild(houder);
+        }
+        houder.hidden = false;
+        houder.textContent = '';
+        const rijMaken = (labelTekst, inhoud) => {
+            const r = document.createElement('div');
+            r.className = 'dim-variant-rij';
+            const l = document.createElement('span');
+            l.className = 'dim-variant-label';
+            l.textContent = labelTekst;
+            r.append(l, inhoud);
+            houder.appendChild(r);
+        };
+        if (colors.length) rijMaken('Kleur', swatchesMaken());
+        if (thicknesses.length > 1) rijMaken('Dikte', chipsMaken(thicknesses, cur.dikte, 'dikte', 'dim-detail-diktes'));
+        if (formaten.length > 1) rijMaken('Formaat', chipsMaken(formaten, cur.formaat, 'formaat', 'dim-detail-diktes dim-detail-formaten'));
+        if (vormen.length > 1) rijMaken('Verpakt', chipsMaken(vormen, cur.vorm, 'vorm', 'dim-detail-diktes dim-detail-vormen'));
+        if (verpakkingen.length > 1) rijMaken('Verpakt per', chipsMaken(verpakkingen, cur.verpakking, 'verpakking', 'dim-detail-diktes dim-detail-verpakkingen'));
+        if (!houder.children.length) houder.hidden = true;
+    }
+
+    /* --- 360-video in het detail: speelt één keer over de foto heen ---------
+       Daarna fade hij weg en blijft de gewone productfoto staan — geen loop,
+       geen herstart bij hover. Bij een variantwissel komt er (als die variant
+       een video heeft) een verse, die ook weer precies één keer draait. */
+    function plaatsDetailVideo(url) {
+        panelContent.querySelectorAll('.dim-detail-video').forEach(v => v.remove());
+        if (!url || rustigAan.matches) return;
+        const foto = panelContent.querySelector('img.e-image-base, img[src*="/renders/"], img[data-id]');
+        if (!foto || !foto.parentElement) return;
+        const ouder = foto.parentElement;
+        ouder.classList.add('dim-detail-media');
+        const video = document.createElement('video');
+        video.className = 'dim-detail-video';
+        video.src = url;
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = 'auto';
+        video.addEventListener('ended', () => {
+            video.classList.add('is-klaar');                 // fade (CSS)
+            setTimeout(() => video.remove(), 500);           // daarna echt weg
+        });
+        ouder.appendChild(video);
+        video.play().catch(() => video.remove());
+    }
+
     async function renderVariants(productId) {
         // bestaande injecties opruimen
-        panelContent.querySelectorAll('.dim-variant-selector, .dim-artikel-meta, .dim-detail-swatches, .dim-detail-diktes, .dim-injected-row').forEach(el => el.remove());
+        kiezerCtx = null;
+        panelContent.querySelectorAll('.dim-variant-selector, .dim-artikel-meta, .dim-detail-swatches, .dim-detail-diktes, .dim-injected-row, .dim-spec-rij--dim, .dim-detail-video').forEach(el => el.remove());
 
         // topbar (pijltje) blijft in beeld terwijl je door het detail scrolt
         const tb = panelContent.querySelector('.dim-product-close');
@@ -499,7 +703,7 @@
         // distinct:false is nodig — de index heeft attributeForDistinct=variant_group voor het
         // grid, maar hier willen we juist ALLE records (alle kleur/dikte-varianten) zien.
         const self = await algoliaQuery({ query: '', hitsPerPage: 1, distinct: false, numericFilters: [`post_id=${productId}`],
-            attributesToRetrieve: ['post_id', 'post_title', 'artikelcode', 'variant_group', 'variant_base_title', 'kwaliteit', 'type', 'vorm', 'formaat', 'merk_naam', 'kleuren', 'dikte', 'verpakt_per'] });
+            attributesToRetrieve: ['post_id', 'post_title', 'artikelcode', 'variant_group', 'variant_base_title', 'kwaliteit', 'type', 'vorm', 'formaat', 'merk_naam', 'kleuren', 'dikte', 'verpakt_per', 'video_url'] });
         const me = self && self.hits && self.hits[0];
         if (!me) return;
 
@@ -514,19 +718,8 @@
             `<input type="hidden" name="dim_post_id" value="${me.post_id || productId}">`;
         panelContent.appendChild(metaEl);
 
-        /* --- Variantkiezers: AAN/UIT via het detailtemplate ---------------------
-           De kleur-, dikte-, formaat-, vorm- en verpakkingsknoppen staan niet in
-           het design van 2026, maar de code blijft hier volledig staan — de kans
-           is groot dat er alsnog naar gevraagd wordt.
-
-           Terugzetten kost één handeling: sleep in het Elementor-detailtemplate
-           (post 1498) een Shortcode-widget en zet daar [dim_product_varianten]
-           in. Dat zet alleen de schakelaar om; de knoppen injecteren zichzelf
-           daarna op hun eigen plek in het paneel, net als voorheen.
-
-           Alles hierboven blijft wél draaien: de verborgen artikelcode die de
-           offerte-flow meestuurt heeft niets met de knoppen te maken. */
-        if (!panelContent.querySelector('#dim-varianten')) return;
+        // 360-video over de foto — ook voor producten zónder varianten
+        plaatsDetailVideo(me.video_url || '');
 
         // N.B. geen harde eis meer op kwaliteit/type/formaat: handschoenen hebben
         // bv. geen 'type' maar wél varianten (maten). variant_group is de bron.
@@ -544,7 +737,7 @@
             if (me.type) ff.push([`type:${me.type}`]);
             if (!ff.length) ff.push([`variant_group:${group}`]);
             const sib = await algoliaQuery({ query: '', hitsPerPage: 500, distinct: false, facetFilters: ff,
-                attributesToRetrieve: ['post_id', 'variant_group', 'vorm', 'formaat', 'kleuren', 'dikte', 'artikelcode', 'verpakt_per'] });
+                attributesToRetrieve: ['post_id', 'variant_group', 'vorm', 'formaat', 'kleuren', 'dikte', 'artikelcode', 'verpakt_per', 'video_url'] });
             siblings = ((sib && sib.hits) || []).filter(s => s.variant_group === group);
             variantCache.set(group, siblings);
         }
@@ -573,15 +766,6 @@
             formaat: me.formaat || '',
             vorm: norm(me.vorm),
             verpakking: norm(me.verpakt_per),
-        };
-
-        // formaat splitsen in breedte + lengte ("58/2x22 x 63cm" -> ["58/2x22", "63cm"])
-        const splitsFormaat = (f) => {
-            const delen = String(f || '').split(' x ');
-            if (delen.length < 2) return null;
-            const lengte = delen[delen.length - 1].trim();
-            if (!/^\d+(?:[.,]\d+)?\s*(cm|mm)$/.test(lengte)) return null;
-            return { breedte: delen.slice(0, -1).join(' x ').trim(), lengte };
         };
 
         // vind het juiste artikel bij een keuze. De varianten vormen geen volledige matrix,
@@ -627,113 +811,10 @@
             }
         };
 
-        // Hulp: vind de spec-rij (Elementor flex-container met space-between) bij een label.
-        // Retourneert de rij + het waarde-deel (de widget náást het label), indien aanwezig.
-        const vindRij = (labelRegex) => {
-            const label = [...panelContent.querySelectorAll('.elementor-heading-title')]
-                .find(el => labelRegex.test(el.textContent.trim()));
-            if (!label) return null;
-            const rij = label.closest('.e-con') || label.parentElement;
-            const labelWidget = [...rij.children].find(ch => ch.contains(label)) || label;
-            const valueWidget = [...rij.children].find(ch => ch !== labelWidget);
-            return { rij, labelWidget, valueWidget };
-        };
-
-        // KLEUR: klikbare swatches rechts op de "Kleuren:"-regel (zoals de andere waarden).
-        // Ook bij één kleur tonen we de swatch (de tekst-waarde is uit de template gehaald).
-        if (colors.length) {
-            const sw = document.createElement('div');
-            sw.className = 'dim-detail-swatches';
-            sw.innerHTML = colors.map(c => swatchKnop(c, c === cur.color)).join('');
-            sw.addEventListener('click', klik);
-            const spot = vindRij(/^Kleuren:?$/);
-            if (spot) {
-                if (spot.valueWidget) spot.valueWidget.replaceChildren(sw);
-                else spot.rij.appendChild(sw);   // space-between duwt de swatches naar rechts
-            }
-        }
-
-        // DIKTE: chips rechts op de "Dikte:"-regel — klikbaar, net als de kleuren.
-        const chipsRij = (waarden, huidig, kind, cls) => {
-            const el = document.createElement('div');
-            el.className = cls;
-            el.innerHTML = waarden.map(w =>
-                `<button type="button" class="dim-variant-chip${w === huidig ? ' is-active' : ''}"` +
-                ` data-kind="${kind}" data-value="${encodeURIComponent(w)}">${w}</button>`).join('');
-            el.addEventListener('click', klik);
-            return el;
-        };
-        if (thicknesses.length > 1) {
-            const dk = chipsRij(thicknesses, cur.dikte, 'dikte', 'dim-detail-diktes');
-            const spot = vindRij(/^Dikte:?$/);
-            if (spot) {
-                if (spot.valueWidget) spot.valueWidget.replaceChildren(dk);
-                else spot.rij.appendChild(dk);
-            }
-        }
-
-        // FORMAAT-regel wordt BREEDTE + LENGTE: label hernoemen naar "Breedte:" met één
-        // (vaste) chip, en een eigen "Lengte:"-rij met klikbare lengte-knoppen eronder.
-        const gesplitst = splitsFormaat(cur.formaat);
-        const formaatSpot = vindRij(/^Formaat:?$/);
-        let lengteRij = null;
-        if (gesplitst && formaatSpot) {
-            const eenheid = (gesplitst.lengte.match(/cm|mm/) || [''])[0];
-            // label "Formaat:" -> "Breedte:"
-            const labelEl = [...formaatSpot.labelWidget.querySelectorAll('.elementor-heading-title'), formaatSpot.labelWidget]
-                .find(el => /^Formaat:?$/.test(el.textContent.trim()));
-            if (labelEl) labelEl.textContent = 'Breedte:';
-            // breedte: één vaste chip (breedte is per variant-groep altijd gelijk)
-            const br = document.createElement('div');
-            br.className = 'dim-detail-diktes dim-detail-breedte';
-            br.innerHTML = `<button type="button" class="dim-variant-chip is-active is-static">${gesplitst.breedte} ${eenheid}</button>`;
-            if (formaatSpot.valueWidget) formaatSpot.valueWidget.replaceChildren(br);
-            else formaatSpot.rij.appendChild(br);
-            // lengte: klikbare knoppen (chips tonen "110cm", klik kiest het volledige formaat)
-            const lengtes = formaten.map(f => ({ f, s: splitsFormaat(f) })).filter(x => x.s);
-            const lg = document.createElement('div');
-            lg.className = 'dim-detail-diktes dim-detail-lengtes';
-            lg.innerHTML = lengtes.map(x =>
-                `<button type="button" class="dim-variant-chip${x.f === cur.formaat ? ' is-active' : ''}${lengtes.length > 1 ? '' : ' is-static'}"` +
-                ` data-kind="formaat" data-value="${encodeURIComponent(x.f)}">${x.s.lengte}</button>`).join('');
-            lg.addEventListener('click', klik);
-            lengteRij = document.createElement('div');
-            lengteRij.className = 'dim-injected-row';
-            const ll = document.createElement('span');
-            ll.className = 'dim-injected-label';
-            ll.textContent = 'Lengte:';
-            lengteRij.append(ll, lg);
-            formaatSpot.rij.insertAdjacentElement('afterend', lengteRij);
-        } else if (formaten.length > 1 && formaatSpot) {
-            // niet-splitsbaar formaat (bv. 3 maten): dan gewone formaat-chips op de regel
-            const fm = chipsRij(formaten, cur.formaat, 'formaat', 'dim-detail-diktes dim-detail-formaten');
-            if (formaatSpot.valueWidget) formaatSpot.valueWidget.replaceChildren(fm);
-            else formaatSpot.rij.appendChild(fm);
-        }
-
-        // VERPAKT: eigen rij (rol / los / op koker ...) onder de Lengte-rij.
-        if (vormen.length > 1) {
-            const vp = chipsRij(vormen, cur.vorm, 'vorm', 'dim-detail-diktes dim-detail-vormen');
-            const rij = document.createElement('div');
-            rij.className = 'dim-injected-row';
-            const label = document.createElement('span');
-            label.className = 'dim-injected-label';
-            label.textContent = 'Verpakt:';
-            rij.append(label, vp);
-            const anker = lengteRij || (formaatSpot && formaatSpot.rij) || (vindRij(/^Dikte:?$/) || {}).rij;
-            if (anker) anker.insertAdjacentElement('afterend', rij);
-            else panelContent.appendChild(rij);
-        }
-
-        // VERPAKKING (eenheid): chips op de bestaande "Verpakt per:"-regel
-        // (bv. "10 rol à 20 stuks" vs "25 rol à 20 stuks").
-        if (verpakkingen.length > 1) {
-            const ve = chipsRij(verpakkingen, cur.verpakking, 'verpakking', 'dim-detail-diktes dim-detail-verpakkingen');
-            const spot = vindRij(/^Verpakt per:?$/);
-            if (spot) {
-                if (spot.valueWidget) spot.valueWidget.replaceChildren(ve);
-                else spot.rij.appendChild(ve);
-            }
-        }
+        // Alles staat klaar: context bewaren en de kiezers in de specs-tabel
+        // zetten. switchVariant herbouwt ze met dezelfde context (met een
+        // bijgewerkte cur) na elke wissel.
+        kiezerCtx = { colors, thicknesses, formaten, vormen, verpakkingen, cur, klik };
+        plaatsKiezers();
     }
 })();

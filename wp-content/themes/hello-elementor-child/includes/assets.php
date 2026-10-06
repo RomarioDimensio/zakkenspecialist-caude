@@ -1,4 +1,20 @@
 <?php
+/* Child Theme Configurator herschrijft ver= van ÁLLE child-theme-styles naar
+   de themaversie (chld_thm_cfg_version, prio 10). Daarmee verdwijnt onze
+   filemtime-cachebuster en blijven browsers na elke wijziging de oude
+   component-CSS serveren. Hier zetten we hem terug — prio 11, dus ná de
+   plugin. (De scripts raakt die plugin niet aan.) */
+add_filter('style_loader_src', function ($src, $handle) {
+    if (strpos($handle, 'comp-') === 0 && strpos($src, '/components/') !== false) {
+        $pad = wp_parse_url($src, PHP_URL_PATH);
+        $file = get_stylesheet_directory() . substr($pad, strpos($pad, '/components/'));
+        if (file_exists($file)) {
+            $src = add_query_arg('ver', (string) filemtime($file), $src);
+        }
+    }
+    return $src;
+}, 11, 2);
+
 add_action('wp_enqueue_scripts', function ($hook) {
     $theme_uri = get_stylesheet_directory_uri();
     $theme_dir = get_stylesheet_directory();

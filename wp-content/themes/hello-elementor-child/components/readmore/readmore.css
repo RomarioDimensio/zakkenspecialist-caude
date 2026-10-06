@@ -1,0 +1,66 @@
+/* Lees meer / lees minder — hoort bij readmore.js.
+   De tekst wordt daar op een woordgrens geknipt; hier staat alleen wat de
+   twee standen tonen en hoe de inline knopjes eruitzien. */
+
+/* De tekst wordt écht ingekort (rest staat op display:none), dus de oude
+   pixel-kap uit de Elementor-styling (max-height 399 + overflow hidden) is
+   overbodig én schadelijk: hij sneed de "..... lees meer" er weer af.
+   Zodra het script actief is (een van de twee standen), gaat die kap uit. */
+.readmore.rm-dicht,
+.readmore.is-open {
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* verborgen deel (de rest van de tekst + alles na het geknipte blok) */
+.readmore.rm-dicht .rm-verborgen {
+    display: none !important;
+}
+
+/* Meetstand (readmore.js): entrance-animaties van Elementor-interactions
+   even stilzetten, anders meten we regelposities mét transform/opacity
+   van de animatie erin. Alleen actief tijdens het knippen zelf. */
+.readmore.rm-meet,
+.readmore.rm-meet * {
+    transform: none !important;
+    opacity: 1 !important;
+    transition: none !important;
+    animation: none !important;
+}
+
+/* "..... lees meer" alleen in de dichte stand */
+.readmore .rm-suffix { display: none; }
+.readmore.rm-dicht .rm-suffix { display: inline; white-space: nowrap; }
+
+/* "lees minder" alleen in de open stand */
+.readmore .rm-leesminder-houder { display: none; }
+.readmore.is-open .rm-leesminder-houder { display: inline; }
+
+/* de knopjes: als tekstlink in het groen, zoals in het ontwerp */
+.rm-leesmeer,
+.rm-leesminder {
+    display: inline;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--green-accent, #00a651);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.rm-leesmeer:hover,
+.rm-leesminder:hover {
+    color: var(--dzs-groen-donker, #007e3d);
+    background: none;
+    text-decoration: underline;
+}
+
+@media (max-width: 576px) {
+    /* "lees minder" scrolt terug naar de bovenkant van het blok;
+       dit houdt hem onder de vaste header vandaan */
+    .readmore {
+        scroll-margin-top: 140px;
+    }
+}

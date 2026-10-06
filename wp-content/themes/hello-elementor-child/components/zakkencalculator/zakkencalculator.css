@@ -48,3 +48,158 @@
 #dim-product-search-filter-omtrek {
     display: none !important;
 }
+
+/* ================== POPUP: uitkomst + passende zakken ==================
+   Gevuld door toonPopup() in zakkencalculator.js. Zelfde vormtaal als de
+   rest: pill-knoppen van 50 hoog, huisgroen, radius 8 op kaartjes. */
+.dim-calc-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;              /* boven de vaste header (en WP-adminbalk) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+/* display:flex hierboven zou anders van het hidden-attribuut winnen —
+   dan "sluit" de popup wel (hidden=true) maar blijft hij in beeld staan. */
+.dim-calc-popup[hidden] { display: none; }
+
+html.dim-calc-popup-open,
+html.dim-calc-popup-open body { overflow: hidden; }
+
+.dim-calc-popup__achtergrond {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .45);
+}
+
+.dim-calc-popup__venster {
+    position: relative;
+    width: 100%;
+    max-width: 880px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: #fff;
+    border-radius: 12px;
+    padding: 32px 32px 28px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .25);
+}
+
+.dim-calc-popup__sluiten {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    background: #f3f4f6;
+    color: #111;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+.dim-calc-popup__sluiten:hover {
+    background: #e5e7eb;
+}
+
+.dim-calc-popup__venster h3 {
+    margin: 0 0 14px;
+    font-size: 24px;
+    line-height: 1.2;
+}
+
+.dim-calc-popup__laden,
+.dim-calc-popup__leeg {
+    margin: 0 0 20px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+/* de gevonden zakken: compacte klikbare kaartjes, twee naast elkaar */
+.dim-calc-popup__resultaten {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 0 20px;
+}
+
+.dim-calc-popup__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    color: #000;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease;
+}
+
+.dim-calc-popup__item:hover,
+.dim-calc-popup__item:focus-visible {
+    color: var(--green-accent);
+    border-color: var(--green-accent);
+    background: #fff;
+}
+
+.dim-calc-popup__item:hover .dim-calc-popup__naam {
+    color: var(--green-accent);
+}
+
+.dim-calc-popup__item img,
+.dim-calc-popup__geenfoto {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    background: #fff;
+    border-radius: 6px;
+}
+
+.dim-calc-popup__naam {
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.25;
+    text-wrap: wrap;
+}
+
+.dim-calc-popup__naam small {
+    display: block;
+    margin-top: 2px;
+    color: #8d8d8d;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.dim-calc-popup__alle {
+    display: inline-flex;
+    align-items: center;
+    height: 50px;
+    padding: 0 28px;
+    border: 0;
+    border-radius: 25px;
+    background: var(--green-accent);
+    color: #fff;
+    font: inherit;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color .2s ease;
+}
+
+.dim-calc-popup__alle:hover,
+.dim-calc-popup__alle:focus-visible { background: #008a43; }
+
+@media (max-width: 640px) {
+    .dim-calc-popup { padding: 12px; }
+    .dim-calc-popup__venster { padding: 24px 18px 20px; }
+    .dim-calc-popup__resultaten { grid-template-columns: minmax(0, 1fr); }
+    .dim-calc-popup__alle { width: 100%; justify-content: center; }
+}

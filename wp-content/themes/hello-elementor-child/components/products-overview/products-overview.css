@@ -315,7 +315,7 @@ html.dim-filters-open body {
     border-radius: 999px;
     background: #fff;
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: 18px;
     line-height: 1.2;
     transition: all 0.15s ease;
 }
@@ -336,7 +336,7 @@ html.dim-filters-open body {
     display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
     margin-left: auto;   /* rechts uitlijnen, net als de andere waarden in de spec-rijen */
 }
 
@@ -353,20 +353,62 @@ html.dim-filters-open body {
     background: repeating-linear-gradient(45deg, #e5e7eb 0 3px, #ffffff 3px 6px);
 }
 
+/* Groot = de klikbare kiezer in het detail: rond, 50x50 — lekker raakvlak,
+   zelfde ronde stijl als de mini-swatches op de kaarten in het overzicht. */
 .dim-swatch.dim-swatch--groot {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     cursor: pointer;
     padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.18);
     transition: transform 0.12s ease;
 }
 
-.dim-swatch.dim-swatch--groot:hover { transform: scale(1.12); }
+.dim-swatch.dim-swatch--groot:hover { transform: scale(1.08); }
 
 .dim-swatch.dim-swatch--groot.is-active {
-    outline: 2px solid #16a34a;
-    outline-offset: 2px;
+    outline: 3px solid var(--dzs-groen, #00a651);
+    outline-offset: 3px;
+}
+
+/* ---- Variantkiezer 2026: gestapeld blok boven de specs-tabel ----
+   (gevuld door renderVariants in products-overview.js) */
+#dim-varianten {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 4px 0 28px;
+}
+#dim-varianten:empty { display: none; }
+
+.dim-variant-rij {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dim-variant-label {
+    font-weight: 700;
+    font-size: 15px;
+}
+
+#dim-varianten .dim-detail-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+#dim-varianten .dim-detail-swatches .dim-swatch { margin-right: 0; }
+
+/* chips in het gestapelde blok: links uitlijnen (elders staan ze rechts)
+   en wat forser, zodat ze net zo makkelijk tikken als de swatches */
+#dim-varianten .dim-detail-diktes {
+    justify-content: flex-start;
+    gap: 10px;
+}
+#dim-varianten .dim-variant-chip {
+    font-size: 15px;
+    padding: 10px 18px;
 }
 
 .dim-detail-swatches .dim-swatch,
@@ -532,3 +574,33 @@ html.dim-filters-open body {
     border: 1px solid rgba(0, 0, 0, .18);
     vertical-align: -2px;
 }
+
+/* ---- Kiezers ín de specs-tabel (design 2026) ----
+   De swatches en chips vervangen de kale tekstwaarde in de <td> van de
+   bestaande spec-rij; de tabelvorm blijft dus exact gelijk. */
+.dim-specs__tabel .dim-spec-rij--kiezer > th { vertical-align: middle; }
+.dim-specs__tabel .dim-detail-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 4px 0;
+}
+.dim-specs__tabel .dim-detail-diktes {
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 2px 0;
+}
+
+/* ---- 360-video in het detail: één keer afspelen over de foto heen ---- */
+.dim-detail-media { position: relative; }
+.dim-detail-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity .45s ease;
+}
+.dim-detail-video.is-klaar { opacity: 0; }
