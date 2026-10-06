@@ -161,7 +161,7 @@ add_action('admin_init', function () {
 
     $q = new WP_Query([ 'post_type' => 'product', 'post_status' => 'publish',
         'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true ]);
-    $stat = [ 'beeldbank' => 0, 'generiek' => 0, 'video' => 0, 'video_weg' => 0, 'al_gekoppeld' => 0, 'geen_match' => 0 ];
+    $stat = [ 'beeldbank' => 0, 'generiek' => 0, 'foto_sync' => 0, 'video' => 0, 'video_weg' => 0, 'al_gekoppeld' => 0, 'geen_match' => 0 ];
 
     foreach ($q->posts as $pid) {
         $code = trim((string) get_field('artikelcode', $pid));
@@ -169,6 +169,17 @@ add_action('admin_init', function () {
         $kleur = [ 'grijs' => 'grijs_zwart' ][ $kleur ] ?? $kleur;
         $b = (float) get_field('breedte_cm', $pid); $l = (float) get_field('lengte_cm', $pid);
         $volgorde = ($b > 0 && $l > 0 && $l / $b >= 1.5) ? [ 'B', 'A' ] : [ 'A', 'B' ];
+
+        /* De product-editor toont alleen het ACF-veld product_image (de box
+           "Uitgelichte afbeelding" is daar verborgen), maar Algolia (kaartfoto
+           in het overzicht) en de video-koppeling hieronder kijken naar de
+           uitgelichte afbeelding. Wisselt iemand de foto in de editor, dan
+           trekken we de uitgelichte afbeelding hier bij: één foto, overal. */
+        $acf_img = (int) get_post_meta($pid, 'product_image', true);
+        if ($acf_img && $acf_img !== (int) get_post_thumbnail_id($pid) && wp_attachment_is_image($acf_img)) {
+            set_post_thumbnail($pid, $acf_img);
+            $stat['foto_sync']++;
+        }
 
         if ($force || !has_post_thumbnail($pid)) {
             $img_id = 0; $bron = '';
@@ -254,8 +265,8 @@ add_action('admin_init', function () {
     }
 
     wp_die(sprintf(
-        'Foto-koppeling klaar. Beeldbank (artikelcode): %d | Generiek (kleur A/B): %d | 360-video gezet/gewijzigd: %d | video weggehaald (geen passende video bij deze foto): %d | al gekoppeld (overgeslagen): %d | geen match: %d.<br>Draai nu ?dim_reindex_producten=1 zodat de wijzigingen in de zoekindex komen. Tip: &video_opnieuw=1 herkoppelt ook producten die al een video hebben.',
-        $stat['beeldbank'], $stat['generiek'], $stat['video'], $stat['video_weg'], $stat['al_gekoppeld'], $stat['geen_match']
+        'Foto-koppeling klaar. Beeldbank (artikelcode): %d | Generiek (kleur A/B): %d | Editor-foto doorgezet naar uitgelichte afbeelding: %d | 360-video gezet/gewijzigd: %d | video weggehaald (geen passende video bij deze foto): %d | al gekoppeld (overgeslagen): %d | geen match: %d.<br>Draai nu ?dim_reindex_producten=1 zodat de wijzigingen in de zoekindex komen. Tip: &video_opnieuw=1 herkoppelt ook producten die al een video hebben.',
+        $stat['beeldbank'], $stat['generiek'], $stat['foto_sync'], $stat['video'], $stat['video_weg'], $stat['al_gekoppeld'], $stat['geen_match']
     ));
 });
 
