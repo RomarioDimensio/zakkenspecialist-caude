@@ -216,6 +216,7 @@ add_action('admin_init', function () {
            eerst de foto; het filmpje hoort daar naadloos op aan te sluiten:
 
              render_kratzak_{kleur}.webp        -> DZS_360_kratzakken_{kleur}_360_2sec
+             DZS_hondenpoepzak...-foto          -> DZS_hondenpoepzakje_360_2sec
              render_zak_happysacks_..._{A|B}    -> DZS_zak_Happy_Sacks_360_{A|B}_2sec
              render-/DZS-foto met letter {A|B}  -> DZS_zak-{kleur}_360_{A|B}_2sec
              beeldbankfoto of geen foto         -> GEEN video
@@ -232,6 +233,8 @@ add_action('admin_init', function () {
             $vid = 0;
             if ($kleur !== '' && stripos($foto_bestand, 'render_kratzak') === 0) {
                 $vid = $vind('DZS_360_kratzakken_' . $kleur . '_360_2sec');
+            } elseif (stripos($foto_bestand, 'DZS_hondenpoepzak') === 0) {
+                $vid = $vind('DZS_hondenpoepzakje_360_2sec');
             } elseif (preg_match('~^render_zak_happysacks.*_([ab])\.[a-z0-9]+$~i', $foto_bestand, $m)) {
                 $vid = $vind('DZS_zak_Happy_Sacks_360_' . strtoupper($m[1]) . '_2sec');
             } elseif ($kleur !== '' && preg_match('~^(render_|dzs_).*_([ab])\.[a-z0-9]+$~i', $foto_bestand, $m)) {
