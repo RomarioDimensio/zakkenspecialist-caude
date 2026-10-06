@@ -129,7 +129,10 @@ add_action('admin_init', function () {
 //   2. generieke zakfoto per kleur: DZS_zak-{kleur}_360_0001_{A|B} uit de Media Library
 //      (A = korte zak, B = lange zak; lengte/breedte >= 1.5 telt als lang; grijs -> grijs_zwart)
 //   3. geen match -> placeholder blijft
-// Bonus: 360-video per kleur (DZS_zak-{kleur}_360_{A|B}_2sec) in het ACF-veld 360_video_view.
+// Bonus: 360-video in het ACF-veld 360_video_view — alléén bij render-foto's, passend
+// bij het foto-type: zak (DZS_zak-{kleur}_360_{A|B}_2sec), kratzak
+// (DZS_360_kratzakken_{kleur}_360_2sec) of Happy Sacks (DZS_zak_Happy_Sacks_360_{A|B}_2sec).
+// Beeldbankfoto's (echte productfoto's) krijgen géén video.
 add_action('admin_init', function () {
     if (!current_user_can('manage_options')) return;
     if (empty($_GET['dim_koppel_fotos'])) return;
@@ -209,23 +212,31 @@ add_action('admin_init', function () {
             $stat['al_gekoppeld']++;
         }
 
-        /* Bonus: 360-video — de video volgt de FOTO, niet de afmetingen.
-           De bezoeker ziet eerst de foto; het filmpje hoort daar naadloos op
-           aan te sluiten. De A/B-letter komt daarom uit de bestandsnaam van
-           de gekoppelde foto (render_zak_grijs_A.webp -> A). Foto's zonder
-           letter (beeldbank op artikelcode, kratzakken) vallen terug op het
-           rekenmodel. En STRIKT: bestaat de video met díe letter niet, dan
-           géén video — een filmpje met het verkeerde model (B-zak draait
-           terwijl de foto een A-zak toont) is erger dan geen filmpje.
+        /* Bonus: 360-video — de video volgt het FOTO-TYPE. De bezoeker ziet
+           eerst de foto; het filmpje hoort daar naadloos op aan te sluiten:
+
+             render_kratzak_{kleur}.webp        -> DZS_360_kratzakken_{kleur}_360_2sec
+             render_zak_happysacks_..._{A|B}    -> DZS_zak_Happy_Sacks_360_{A|B}_2sec
+             render-/DZS-foto met letter {A|B}  -> DZS_zak-{kleur}_360_{A|B}_2sec
+             beeldbankfoto of geen foto         -> GEEN video
+
+           Echte productfoto's (beeldbank op artikelcode) zijn geen renders:
+           daar hoort geen ronddraaiende render-zak overheen. En STRIKT:
+           bestaat de passende video niet, dan géén video — een gewone zak
+           die ronddraait bij een kratzak-foto is erger dan geen filmpje.
            ?dim_koppel_fotos=1&video_opnieuw=1 herkoppelt ook producten die
-           al een video hadden (de opschoonactie na deze wijziging). */
-        if ($kleur !== '' && ($video_opnieuw || !get_field('360_video_view', $pid))) {
-            $letter = $volgorde[0];
+           al een video hadden (draai dit na elke regelwijziging of na het
+           uploaden van nieuwe 360-video's). */
+        if ($video_opnieuw || !get_field('360_video_view', $pid)) {
             $foto_bestand = basename((string) get_post_meta(get_post_thumbnail_id($pid), '_wp_attached_file', true));
-            if (preg_match('~_([ab])\.[a-z0-9]+$~i', $foto_bestand, $m)) {
-                $letter = strtoupper($m[1]);
+            $vid = 0;
+            if ($kleur !== '' && stripos($foto_bestand, 'render_kratzak') === 0) {
+                $vid = $vind('DZS_360_kratzakken_' . $kleur . '_360_2sec');
+            } elseif (preg_match('~^render_zak_happysacks.*_([ab])\.[a-z0-9]+$~i', $foto_bestand, $m)) {
+                $vid = $vind('DZS_zak_Happy_Sacks_360_' . strtoupper($m[1]) . '_2sec');
+            } elseif ($kleur !== '' && preg_match('~^(render_|dzs_).*_([ab])\.[a-z0-9]+$~i', $foto_bestand, $m)) {
+                $vid = $vind('DZS_zak-' . $kleur . '_360_' . strtoupper($m[2]) . '_2sec');
             }
-            $vid = $vind('DZS_zak-' . $kleur . '_360_' . $letter . '_2sec');
             // rauwe meta, niet get_field(): het file-veld geeft een array terug
             // en dan telt elke run als "gewijzigd" terwijl het ID gelijk blijft
             $huidig = (int) get_post_meta($pid, '360_video_view', true);
@@ -233,14 +244,14 @@ add_action('admin_init', function () {
                 update_field('360_video_view', $vid, $pid);
                 $stat['video']++;
             } elseif (!$vid && $huidig) {
-                update_field('360_video_view', '', $pid);   // liever geen filmpje dan het verkeerde model
+                update_field('360_video_view', '', $pid);   // liever geen filmpje dan het verkeerde
                 $stat['video_weg']++;
             }
         }
     }
 
     wp_die(sprintf(
-        'Foto-koppeling klaar. Beeldbank (artikelcode): %d | Generiek (kleur A/B): %d | 360-video gezet/gewijzigd: %d | video weggehaald (letter past niet bij foto): %d | al gekoppeld (overgeslagen): %d | geen match: %d.<br>Draai nu ?dim_reindex_producten=1 zodat de wijzigingen in de zoekindex komen. Tip: &video_opnieuw=1 herkoppelt ook producten die al een video hebben.',
+        'Foto-koppeling klaar. Beeldbank (artikelcode): %d | Generiek (kleur A/B): %d | 360-video gezet/gewijzigd: %d | video weggehaald (geen passende video bij deze foto): %d | al gekoppeld (overgeslagen): %d | geen match: %d.<br>Draai nu ?dim_reindex_producten=1 zodat de wijzigingen in de zoekindex komen. Tip: &video_opnieuw=1 herkoppelt ook producten die al een video hebben.',
         $stat['beeldbank'], $stat['generiek'], $stat['video'], $stat['video_weg'], $stat['al_gekoppeld'], $stat['geen_match']
     ));
 });
