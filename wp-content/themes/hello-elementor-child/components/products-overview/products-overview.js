@@ -326,6 +326,30 @@
         video.currentTime = 0;     // volgende hover begint gewoon vooraan
     });
 
+    /* ---------- Offerteformulier: URL + artikelcode meesturen ----------
+       In het Elementor-offerteformulier (detail-view) staan twee verborgen
+       tekstvelden met id offerte-url en offerte-artikelcode. Die vullen we
+       vlak voor gebruik: bij de eerste focus in het formulier én nogmaals
+       bij verzenden. De artikelcode komt uit .dim-artikel-meta, die
+       loadProduct/switchVariant al actueel houden — dus ook na een kleur-
+       of formaatwissel gaat de juiste code mee. De URL pakken we op het
+       laatste moment uit de adresbalk (filters en #product= staan er dan
+       al in). Velden ontbreken op andere pagina's: dan doet dit niets. */
+    function vulOfferteVelden() {
+        const urlVeld  = document.getElementById('offerte-url');
+        const codeVeld = document.getElementById('offerte-artikelcode');
+        if (!urlVeld && !codeVeld) return;
+        if (urlVeld) urlVeld.value = window.location.href;
+        if (codeVeld) {
+            const bron = document.querySelector('.dim-artikel-meta input[name="dim_artikelcode"]');
+            codeVeld.value = (bron && bron.value) || '';
+        }
+    }
+    document.addEventListener('focusin', (e) => {
+        if (e.target && e.target.closest && e.target.closest('.e-form-base')) vulOfferteVelden();
+    }, true);
+    document.addEventListener('submit', () => vulOfferteVelden(), true);
+
     function pushUrlChange(pushUrl = true, productId) {
         if (pushUrl) {
             const newUrl = new URL(window.location.href);
