@@ -593,13 +593,22 @@ add_action('admin_init', function () {
         "{$main}_date_desc"    => [ 'ranking' => ['desc(post_date)','typo','geo','words','filters','proximity','attribute','exact','custom'] ],
     ];
 
-    foreach ($replicas as $replicaName => $settings) {
-        $client->initIndex($replicaName)->setSettings($settings);
+    /* Een replica erft NIETS automatisch wanneer setSettings() hem zelf
+       aanmaakt: hij heeft dan alléén de ranking, en mist attributesForFaceting
+       enz. Het vaste filter post_type:product matcht dan nul records en elke
+       sortering toont een leeg overzicht (zo ging het op productie). Daarom:
+       de volledige settings van de hoofdindex kopiëren en daar de ranking
+       overheen leggen — volgorde-onafhankelijk en veilig om te herhalen. */
+    $basis = $client->initIndex($main)->getSettings();
+    unset($basis['replicas'], $basis['primary']);
+
+    foreach ($replicas as $replicaName => $override) {
+        $client->initIndex($replicaName)->setSettings(array_merge($basis, $override));
     }
 
     $client->initIndex($main)->setSettings([ 'replicas' => array_keys($replicas) ]);
 
-    wp_die('Replica settings pushed to Algolia. You can now use sortBy with these replicas.');
+    wp_die('Replica settings pushed to Algolia (volledige settings van ' . esc_html($main) . ' + eigen ranking). Sorteren werkt zodra Algolia ze verwerkt heeft (enkele seconden).');
 });
 
 // Index-settings direct pushen (los van de plugin, die dit niet betrouwbaar doet bij re-index):

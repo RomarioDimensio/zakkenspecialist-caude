@@ -604,9 +604,3 @@ html.dim-filters-open body {
     transition: opacity .45s ease;
 }
 .dim-detail-video.is-klaar { opacity: 0; }
-
-/* ---- Offerteformulier: verborgen metavelden (JS vult ze automatisch) ---- */
-#offerte-url,
-#offerte-artikelcode {
-    display: none !important;
-}
